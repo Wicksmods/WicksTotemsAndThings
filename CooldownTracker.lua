@@ -458,7 +458,9 @@ function CT:Init()
         end
     end
 
-    if #visible == 0 then return end
+    -- Build the host even if the initial filter is empty (e.g. talents not
+    -- yet loaded). PLAYER_TALENT_UPDATE will populate via RebuildForSpec
+    -- once the data is ready.
     self.entries = visible
 
     local host, cfg = buildHost(visible)
@@ -523,19 +525,30 @@ end
 -- Tear down icons + re-filter by current spec, then re-create. Called when
 -- the player respecs (PLAYER_TALENT_UPDATE) or any time spec composition
 -- might have changed. Keeps the same host frame, only the icons rebuild.
+--
+-- Defenses (added v0.2.2 after the bar disappeared bug):
+--   * Skip if newSpec is nil — talent data isn't ready yet, don't clobber.
+--   * Skip if in combat — SecureActionButtonTemplate SetParent is blocked.
+--     Queue for PLAYER_REGEN_ENABLED instead.
+--   * Always re-show the host after rebuild unless cfg.hidden was set.
 function CT:RebuildForSpec()
     if not self.host then return end
+    if InCombatLockdown() then
+        self._rebuildPending = true
+        return
+    end
 
     local newSpec = getActiveSpec()
+    if not newSpec then return end                  -- talents not ready
     if newSpec == self.activeSpec then return end   -- no-op if unchanged
     self.activeSpec = newSpec
 
-    -- Destroy current icon buttons
+    -- Destroy current icon buttons (out of combat only)
     if self.icons then
         for _, b in pairs(self.icons) do
             b:Hide()
-            b:SetParent(nil)
             b:ClearAllPoints()
+            b:SetParent(nil)
         end
     end
     self.icons = {}
@@ -565,11 +578,31 @@ function CT:RebuildForSpec()
         self.icons[e] = buildIcon(self.host, e, i)
     end
 
+    -- Force-show after rebuild unless explicitly hidden via Options
+    if not (self.cfg and self.cfg.hidden) then
+        self.host:Show()
+    end
+
     self:Refresh()
 end
 
+-- Out-of-combat hook: flush any queued rebuild
+WT:On("COMBAT_END", function()
+    if WT.CooldownTracker and WT.CooldownTracker._rebuildPending then
+        WT.CooldownTracker._rebuildPending = false
+        WT.CooldownTracker:RebuildForSpec()
+    end
+end)
+
 function CT:Diagnose()
     print("|cff4FC778Wick's Totems CD diagnostic:|r")
+    print(("  active spec: %s   shaman: %s"):format(
+        tostring(self.activeSpec or "(unknown)"),
+        tostring(WT.isShaman and true or false)))
+    print(("  bar host: %s   shown: %s   hidden cfg: %s"):format(
+        self.host and "exists" or "nil",
+        self.host and tostring(self.host:IsShown()) or "n/a",
+        tostring(self.cfg and self.cfg.hidden or false)))
     print(("  target: %s   exists: %s"):format(
         UnitName("target") or "(none)",
         tostring(UnitExists("target") and true or false)))
