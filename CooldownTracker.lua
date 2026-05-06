@@ -53,6 +53,36 @@ local TRACKED = {
     -- Player buff: Flurry stack (melee crit window)
     { aura = "Flurry",                 kind = "proc",  short = "Flurry", icon = "Interface\\Icons\\Ability_Ghoulfrenzy" },
 
+    -- Resto: Earth Shield charges on target (cast on MT, decrements per heal)
+    { aura = "Earth Shield",           kind = "proc",  short = "ES", unit = "target", harmful = false,
+      displayName = "Earth Shield (target)",
+      icon = "Interface\\Icons\\Spell_Nature_SkinofEarth" },
+
+    -- Resto: Mana Tide Totem buff window — counts down 12s while MT pulses
+    { aura = "Mana Tide Totem",        kind = "proc",  short = "MTBuff",
+      displayName = "Mana Tide buff",
+      icon = "Interface\\Icons\\Spell_Frost_SummonWaterElemental" },
+
+    -- Elemental: Clearcasting (Elemental Focus) — 2-charge mana-cost reduction
+    { aura = "Clearcasting",           kind = "proc",  short = "EF",
+      displayName = "Elemental Focus (Clearcasting)",
+      icon = "Interface\\Icons\\Spell_Shadow_ManaBurn" },
+
+    -- Elemental: Elemental Devastation — melee-crit buff after a spell crit
+    { aura = "Elemental Devastation",  kind = "proc",  short = "ED",
+      displayName = "Elemental Devastation",
+      icon = "Interface\\Icons\\Spell_Fire_SoulBurn" },
+
+    -- Elemental: Eye of the Storm — pushback resistance after taking damage
+    { aura = "Eye of the Storm",       kind = "proc",  short = "EotS",
+      displayName = "Eye of the Storm",
+      icon = "Interface\\Icons\\Spell_Nature_EyeOfTheStorm" },
+
+    -- Elemental: Lightning Overload — combat-log flash on the proc'd second cast
+    { kind = "flash", short = "LO", spellName = "Lightning Overload", flashDuration = 1.2,
+      displayName = "Lightning Overload",
+      icon = "Interface\\Icons\\Spell_Lightning_LightningBolt01" },
+
     -- Combat-log flash: Windfury Weapon proc (extra attack from imbue).
     -- Spell_Shaman_WindfuryWeapon was added in WotLK; the TBC-era icon
     -- for the Windfury Weapon imbue is Spell_Nature_Cyclone.

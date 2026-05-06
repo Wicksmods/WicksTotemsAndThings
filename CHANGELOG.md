@@ -1,11 +1,37 @@
 # Changelog
 
+## v0.2.0 - 2026-05-06
+
+Resto + Elemental coverage and precise totem range checks.
+
+**Per-totem precise range**
+
+- Embedded LibRangeCheck-3.0 (TBC variant) so the affected-count overlay uses true per-totem distance instead of the 40yd `UnitInRange` upper bound.
+- A 20yd Stoneskin Totem now correctly reports zero affected when nobody is inside 20yd, even if multiple party members are within 40yd.
+- Falls back to `UnitInRange` if the lib fails to load.
+
+**Resto trackers (CD bar)**
+
+- **Earth Shield (target)** — proc tracker; lights up when the targeted ally has Earth Shield, shows the stack count.
+- **Mana Tide buff** — separate from the Mana Tide Totem cooldown tracker; lights up while the buff is pulsing on you so you can time your follow-up casts.
+
+**Elemental trackers (CD bar)**
+
+- **Elemental Focus (Clearcasting)** — 2-stack proc tracker; lights up when your spell crit sets up the next two free-mana casts.
+- **Elemental Devastation** — proc tracker for the post-spell-crit melee-crit window.
+- **Eye of the Storm** — proc tracker for the pushback-resist buff after taking damage.
+- **Lightning Overload** — combat-log flash tracker; the icon swirls every time the talent procs a free Lightning Bolt or Chain Lightning copy.
+
+**Carried over from v0.1**
+
+Slim totem icon strip with secure cast buttons + keybind labels, affected-count overlay (now precise), out-of-range warning, totem twisting with click-now cue, swing timer, ankh reagent counter, editable presets, options panel.
+
 ## v0.1.0 - 2026-05-06
 
 Initial release. Enhancement-focused shaman command bar.
 
 - Slim totem icon strip with secure cast buttons + keybind labels
-- Affected-count overlay on every totem (party / raid scan)
+- Affected-count overlay on every totem (party / raid scan, 40yd cap)
 - Count badge overlay on Blizzard's totem frame icons
 - Out-of-range warning with red banner + screen vignette + sound on transition
 - Totem twisting per element with click-now visual + audio cue (default air = Windfury <-> Grace of Air, 5s)
