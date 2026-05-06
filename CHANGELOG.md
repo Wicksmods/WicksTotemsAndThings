@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.2.3 - 2026-05-06
+
+CD bar recovery + diagnostic visibility.
+
+- `getActiveSpec` is now wrapped in pcall so a transient `GetTalentTabInfo` throw at PLAYER_LOGIN can't abort Init silently.
+- Init prints "init starting" / "init done" markers to chat so it's obvious whether it ran and how many entries it built.
+- New slash command `/wtt cdrebuild` — tears down the bar state and re-runs Init from scratch. Recovery for the "bar disappeared" case without a full /reload.
+
 ## v0.2.2 - 2026-05-06
 
 Fix: cooldown bar disappearing after spec detection edge cases.

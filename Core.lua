@@ -199,6 +199,12 @@ SlashCmdList.WICKSTOTEMS = function(input)
         if WT.CooldownTracker and WT.CooldownTracker.Diagnose then WT.CooldownTracker:Diagnose() end
         return
     end
+    if input == "cdrebuild" then
+        if WT.CooldownTracker and WT.CooldownTracker.ForceReinit then
+            WT.CooldownTracker:ForceReinit()
+        end
+        return
+    end
     if input == "swing" then
         if WT.SwingTimer and WT.SwingTimer.Toggle then WT.SwingTimer:Toggle() end
         return
