@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.2.2 - 2026-05-06
+
+Fix: cooldown bar disappearing after spec detection edge cases.
+
+- RebuildForSpec no longer clobbers the bar when `getActiveSpec()` returns nil (talent data still loading after a respec or login).
+- Skipped during combat (SecureActionButtonTemplate.SetParent is blocked) and queued for combat-end.
+- Force-shows the host after rebuild unless explicitly hidden via Options.
+- Init now keeps the host frame alive even when the initial entry list is empty, so the talent-update rebuild has something to populate.
+- `/wtt cdtest` now reports active spec and host visibility.
+
 ## v0.2.1 - 2026-05-06
 
 Spec-aware filter for the cooldown / proc bar.
