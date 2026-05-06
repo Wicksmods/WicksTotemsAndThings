@@ -2,13 +2,12 @@
 -- AffectedCount.lua: tracks active totems and counts party/raid members
 -- inside their effect radius.
 --
--- Range strategy (v0.1):
---   UnitInRange(unit) reports 40yd healing range relative to the player.
---   That's an over-count for 20yd totems (most of them) but a clean lower
---   bound is "anyone not in 40yd of you is definitely not getting buffed."
---   v0.2 will tighten to per-totem precise checks with verified range
---   items via IsItemInRange. Architecture is identical; the scan() function
---   is the only thing that changes.
+-- Range strategy (v0.2):
+--   LibRangeCheck-3.0 picks an in-range probe (item/spell/interact-distance)
+--   per unit and returns (minRange, maxRange) buckets. We use the upper
+--   bound to decide "definitely not in range" — if maxRange < totem range,
+--   the unit is out of range. Falls back to UnitInRange (40yd) if the lib
+--   isn't loaded for some reason.
 
 local ADDON, ns = ...
 local WT = WicksTotems
@@ -19,6 +18,40 @@ local AC = WT.AffectedCount
 AC.active = {}    -- [slot] = { name = ..., affected = N, lastScan = t }
 AC.poll = nil     -- ticker frame
 local POLL_INTERVAL = 0.5
+
+-- LibRangeCheck checker (resolved lazily on first scan since LibStub
+-- finishes loading at addon-load time, but the lib's spell tables
+-- need PLAYER_LOGIN to populate).
+local rangeChecker = nil
+local function ensureChecker()
+    if rangeChecker then return rangeChecker end
+    if LibStub then
+        local ok, lib = pcall(LibStub, "LibRangeCheck-3.0", true)
+        if ok and lib then
+            rangeChecker = lib
+            return rangeChecker
+        end
+    end
+    return nil
+end
+
+-- Returns true if `unit` is within `yards` of the player. Uses
+-- LibRangeCheck when available, falls back to UnitInRange (40yd).
+local function unitInRangeYards(unit, yards)
+    if not UnitExists(unit) then return false end
+    if unit == "player" then return true end
+    local rc = ensureChecker()
+    if rc then
+        local minR, maxR = rc:GetRange(unit)
+        -- maxR can be nil for out-of-range targets; treat as "too far".
+        if not maxR then return false end
+        return maxR <= yards
+    end
+    -- Fallback: UnitInRange is 40yd. For 40yd or above, exact; for shorter
+    -- totems it's an over-count (matches v0.1 behavior).
+    return UnitInRange(unit) and true or false
+end
+WT.unitInRangeYards = unitInRangeYards
 
 -- ============================================================
 -- Core scan
@@ -49,13 +82,15 @@ end
 function AC:CountFor(rangeToken)
     if rangeToken == "self" or rangeToken == "summon" then return 1 end
     if rangeToken == "enemy" then return 0 end
-    -- "raid", or any number, falls through to the generic scan.
+    -- "raid" = full party/raid (e.g. Mana Tide is 40yd-ish), use 40yd as cap.
+    -- Number range = exact yards (10, 20, 30, 40).
+    local maxYd = (type(rangeToken) == "number") and rangeToken or 40
     local n = 0
     for _, u in ipairs(unitsInGroup()) do
         if UnitExists(u) and not UnitIsDeadOrGhost(u) then
             if u == "player" then
                 n = n + 1
-            elseif UnitInRange(u) then
+            elseif unitInRangeYards(u, maxYd) then
                 n = n + 1
             end
         end
