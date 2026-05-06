@@ -1,0 +1,26 @@
+<Bindings>
+    <Binding name="CLICK WicksTotemsBar_DropAll:LeftButton" header="WICKSTOTEMS" category="ADDONS"/>
+    <Binding name="CLICK WicksTotemsBar_FIRE:LeftButton"    category="ADDONS"/>
+    <Binding name="CLICK WicksTotemsBar_EARTH:LeftButton"   category="ADDONS"/>
+    <Binding name="CLICK WicksTotemsBar_WATER:LeftButton"   category="ADDONS"/>
+    <Binding name="CLICK WicksTotemsBar_AIR:LeftButton"     category="ADDONS"/>
+    <Binding name="WICKSTOTEMS_TOGGLE_PANEL" category="ADDONS">
+        if WicksTotems and WicksTotems.UI and WicksTotems.UI.Toggle then
+            WicksTotems.UI:Toggle()
+        end
+    </Binding>
+    <Binding name="WICKSTOTEMS_TOGGLE_BAR" category="ADDONS">
+        if WicksTotems and WicksTotems.TotemBar and WicksTotems.TotemBar.Toggle then
+            WicksTotems.TotemBar:Toggle()
+        end
+    </Binding>
+    <Binding name="WICKSTOTEMS_CYCLE_PRESET" category="ADDONS">
+        if InCombatLockdown() then return end
+        local list = WicksTotemsCharDB and WicksTotemsCharDB.presets
+        if not list or #list == 0 then return end
+        WicksTotemsCharDB.activePreset = ((WicksTotemsCharDB.activePreset or 0) % #list) + 1
+        WicksTotems:Emit("PRESET_CHANGED")
+        local p = list[WicksTotemsCharDB.activePreset]
+        print("|cff4FC778Wick's Totems|r preset: " .. (p.name or "?"))
+    </Binding>
+</Bindings>
