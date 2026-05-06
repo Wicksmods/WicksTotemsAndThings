@@ -50,48 +50,50 @@ local TRACKED = {
     { spell = "Tidal Force",           kind = "both", aura = "Tidal Force",          short = "TF",   icon = "Interface\\Icons\\Spell_Nature_TidalForce" },
     { spell = "Shamanistic Rage",      kind = "both", aura = "Shamanistic Rage",     short = "SR",   icon = "Interface\\Icons\\Spell_Nature_ShamanRage" },
 
-    -- Player buff: Flurry stack (melee crit window)
-    { aura = "Flurry",                 kind = "proc",  short = "Flurry", icon = "Interface\\Icons\\Ability_Ghoulfrenzy" },
+    -- Enhancement: Flurry stack (melee-crit haste window)
+    { aura = "Flurry",                 kind = "proc",  short = "Flurry",
+      spec = "enhancement",
+      icon = "Interface\\Icons\\Ability_Ghoulfrenzy" },
 
-    -- Resto: Earth Shield charges on target (cast on MT, decrements per heal)
+    -- Restoration: Earth Shield charges on target (cast on MT, decrements per heal)
     { aura = "Earth Shield",           kind = "proc",  short = "ES", unit = "target", harmful = false,
-      displayName = "Earth Shield (target)",
+      spec = "restoration", displayName = "Earth Shield (target)",
       icon = "Interface\\Icons\\Spell_Nature_SkinofEarth" },
 
-    -- Resto: Mana Tide Totem buff window — counts down 12s while MT pulses
+    -- Restoration: Mana Tide Totem buff window
     { aura = "Mana Tide Totem",        kind = "proc",  short = "MTBuff",
-      displayName = "Mana Tide buff",
+      spec = "restoration", displayName = "Mana Tide buff",
       icon = "Interface\\Icons\\Spell_Frost_SummonWaterElemental" },
 
     -- Elemental: Clearcasting (Elemental Focus) — 2-charge mana-cost reduction
     { aura = "Clearcasting",           kind = "proc",  short = "EF",
-      displayName = "Elemental Focus (Clearcasting)",
+      spec = "elemental", displayName = "Elemental Focus (Clearcasting)",
       icon = "Interface\\Icons\\Spell_Shadow_ManaBurn" },
 
     -- Elemental: Elemental Devastation — melee-crit buff after a spell crit
     { aura = "Elemental Devastation",  kind = "proc",  short = "ED",
-      displayName = "Elemental Devastation",
+      spec = "elemental", displayName = "Elemental Devastation",
       icon = "Interface\\Icons\\Spell_Fire_SoulBurn" },
 
     -- Elemental: Eye of the Storm — pushback resistance after taking damage
     { aura = "Eye of the Storm",       kind = "proc",  short = "EotS",
-      displayName = "Eye of the Storm",
+      spec = "elemental", displayName = "Eye of the Storm",
       icon = "Interface\\Icons\\Spell_Nature_EyeOfTheStorm" },
 
     -- Elemental: Lightning Overload — combat-log flash on the proc'd second cast
     { kind = "flash", short = "LO", spellName = "Lightning Overload", flashDuration = 1.2,
-      displayName = "Lightning Overload",
+      spec = "elemental", displayName = "Lightning Overload",
       icon = "Interface\\Icons\\Spell_Lightning_LightningBolt01" },
 
-    -- Combat-log flash: Windfury Weapon proc (extra attack from imbue).
-    -- Spell_Shaman_WindfuryWeapon was added in WotLK; the TBC-era icon
-    -- for the Windfury Weapon imbue is Spell_Nature_Cyclone.
+    -- Combat-log flash: Windfury Weapon proc — any melee shaman uses the imbue
     { kind = "flash", short = "WF", displayName = "Windfury Weapon",
       spellName = "Windfury Attack", flashDuration = 1.5,
       icon = "Interface\\Icons\\Spell_Nature_Cyclone" },
 
-    -- Target debuff (Stormstrike: Enhance 21-pt talent in TBC)
-    { aura = "Stormstrike",            kind = "proc", short = "SS", unit = "target", harmful = true, icon = "Interface\\Icons\\Spell_Shaman_Stormstrike" },
+    -- Enhancement: Stormstrike target debuff (21-pt talent)
+    { aura = "Stormstrike",            kind = "proc", short = "SS", unit = "target", harmful = true,
+      spec = "enhancement",
+      icon = "Interface\\Icons\\Spell_Shaman_Stormstrike" },
 
     -- Note: Maelstrom Weapon was added in WotLK 3.0 — not present in TBC 2.5.5.
 }
@@ -155,22 +157,37 @@ local function findAura(unit, name, harmful)
 end
 
 -- ============================================================
--- Spell detection — only show entries the player can actually use
+-- Spell + spec detection — only show entries relevant to the player
 -- ============================================================
 local function spellKnown(name)
     if not name or name == "" then return false end
-    -- GetSpellInfo returns the spell's name if it exists in the spellbook,
-    -- nil otherwise (in TBC). For talent-gated spells the player doesn't
-    -- have, this returns nil.
     if GetSpellInfo and GetSpellInfo(name) then
-        -- GetSpellInfo returns spell info even for spells not in the
-        -- spellbook (e.g. by ID). Better check: GetSpellCooldown returns
-        -- (0,0,0) for unknown spells in TBC. Combined check below.
         local start, dur, enabled = GetSpellCooldown(name)
         if start ~= nil then return true end
     end
     return false
 end
+
+-- Returns "elemental" / "enhancement" / "restoration" / nil based on the
+-- highest-point talent tab. Shaman tabs in TBC: 1 Elemental, 2 Enhancement,
+-- 3 Restoration. Defaults to nil (no filtering) for non-shamans.
+local SHAMAN_SPEC_BY_TAB = { "elemental", "enhancement", "restoration" }
+local function getActiveSpec()
+    if not WT.isShaman then return nil end
+    if not GetNumTalentTabs or not GetTalentTabInfo then return nil end
+    local maxIdx, maxPts = 0, -1
+    local n = GetNumTalentTabs() or 0
+    for i = 1, n do
+        local _, _, points = GetTalentTabInfo(i)
+        if (points or 0) > maxPts then
+            maxPts = points or 0
+            maxIdx = i
+        end
+    end
+    if maxPts <= 0 then return nil end   -- no points spent yet
+    return SHAMAN_SPEC_BY_TAB[maxIdx]
+end
+WT.GetActiveSpec = getActiveSpec
 
 -- ============================================================
 -- Bar construction
@@ -423,13 +440,18 @@ function CT:Init()
     if not WT.isShaman then return end   -- shaman-only
     self.initialized = true
 
-    -- Filter to entries the player can use
+    self.activeSpec = getActiveSpec()
+    -- Filter to entries the player can use:
+    --   - kind=cd / kind=both: filter by spellKnown
+    --   - kind=proc / kind=flash: always show, UNLESS a spec field is set
+    --     and the player's active spec doesn't match
     local visible = {}
     for _, e in ipairs(TRACKED) do
         local target = e.spell or e.aura
-        if e.kind == "proc" or e.kind == "flash" then
-            -- Procs/flashes without a learnable spell: always show (the icon
-            -- sits faded until the trigger fires).
+        local specOK = (not e.spec) or (e.spec == self.activeSpec)
+        if not specOK then
+            -- skip — entry is for a different spec
+        elseif e.kind == "proc" or e.kind == "flash" then
             table.insert(visible, e)
         elseif spellKnown(target) then
             table.insert(visible, e)
@@ -487,6 +509,61 @@ function CT:Init()
             end
         end
     end)
+
+    -- Talent change → respec → re-filter visible entries by new spec.
+    -- PLAYER_TALENT_UPDATE fires after the talent UI confirms a respec.
+    local tf = CreateFrame("Frame")
+    tf:RegisterEvent("PLAYER_TALENT_UPDATE")
+    tf:RegisterEvent("CHARACTER_POINTS_CHANGED")
+    tf:SetScript("OnEvent", function() CT:RebuildForSpec() end)
+
+    self:Refresh()
+end
+
+-- Tear down icons + re-filter by current spec, then re-create. Called when
+-- the player respecs (PLAYER_TALENT_UPDATE) or any time spec composition
+-- might have changed. Keeps the same host frame, only the icons rebuild.
+function CT:RebuildForSpec()
+    if not self.host then return end
+
+    local newSpec = getActiveSpec()
+    if newSpec == self.activeSpec then return end   -- no-op if unchanged
+    self.activeSpec = newSpec
+
+    -- Destroy current icon buttons
+    if self.icons then
+        for _, b in pairs(self.icons) do
+            b:Hide()
+            b:SetParent(nil)
+            b:ClearAllPoints()
+        end
+    end
+    self.icons = {}
+
+    -- Re-filter entries
+    local visible = {}
+    for _, e in ipairs(TRACKED) do
+        local target = e.spell or e.aura
+        local specOK = (not e.spec) or (e.spec == self.activeSpec)
+        if not specOK then
+            -- skip
+        elseif e.kind == "proc" or e.kind == "flash" then
+            table.insert(visible, e)
+        elseif spellKnown(target) then
+            table.insert(visible, e)
+        end
+    end
+    self.entries = visible
+
+    -- Resize host bar to fit new icon count
+    local count = #visible
+    local barW = PADDING * 2 + math.max(1, count) * ICON_SIZE + math.max(0, count - 1) * ICON_GAP
+    self.host:SetWidth(barW)
+
+    -- Recreate icons
+    for i, e in ipairs(visible) do
+        self.icons[e] = buildIcon(self.host, e, i)
+    end
 
     self:Refresh()
 end

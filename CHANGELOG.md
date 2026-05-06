@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.2.1 - 2026-05-06
+
+Spec-aware filter for the cooldown / proc bar.
+
+- Each spec-specific tracker (Stormstrike, Flurry, Earth Shield, Mana Tide buff, Clearcasting, Elemental Devastation, Eye of the Storm, Lightning Overload) now only shows for the matching spec.
+- Spec is detected from highest-points talent tab (Elemental / Enhancement / Restoration).
+- Bar rebuilds automatically on respec via PLAYER_TALENT_UPDATE.
+
 ## v0.2.0 - 2026-05-06
 
 Resto + Elemental coverage and precise totem range checks.
