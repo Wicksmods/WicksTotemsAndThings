@@ -170,22 +170,28 @@ end
 
 -- Returns "elemental" / "enhancement" / "restoration" / nil based on the
 -- highest-point talent tab. Shaman tabs in TBC: 1 Elemental, 2 Enhancement,
--- 3 Restoration. Defaults to nil (no filtering) for non-shamans.
+-- 3 Restoration. Defaults to nil for non-shamans or unloaded talent data.
+-- Wrapped in pcall because GetTalentTabInfo can throw on some clients
+-- before PLAYER_ENTERING_WORLD has fired.
 local SHAMAN_SPEC_BY_TAB = { "elemental", "enhancement", "restoration" }
 local function getActiveSpec()
     if not WT.isShaman then return nil end
     if not GetNumTalentTabs or not GetTalentTabInfo then return nil end
-    local maxIdx, maxPts = 0, -1
-    local n = GetNumTalentTabs() or 0
-    for i = 1, n do
-        local _, _, points = GetTalentTabInfo(i)
-        if (points or 0) > maxPts then
-            maxPts = points or 0
-            maxIdx = i
+    local ok, result = pcall(function()
+        local maxIdx, maxPts = 0, -1
+        local n = GetNumTalentTabs() or 0
+        for i = 1, n do
+            local _, _, points = GetTalentTabInfo(i)
+            if (points or 0) > maxPts then
+                maxPts = points or 0
+                maxIdx = i
+            end
         end
-    end
-    if maxPts <= 0 then return nil end   -- no points spent yet
-    return SHAMAN_SPEC_BY_TAB[maxIdx]
+        if maxPts <= 0 then return nil end
+        return SHAMAN_SPEC_BY_TAB[maxIdx]
+    end)
+    if ok then return result end
+    return nil
 end
 WT.GetActiveSpec = getActiveSpec
 
@@ -435,10 +441,36 @@ end
 -- ============================================================
 -- Init
 -- ============================================================
+
+-- Force re-init (clears initialized flag + tears down state). Used by
+-- /wtt cdrebuild to recover from a half-built bar without /reload.
+function CT:ForceReinit()
+    if InCombatLockdown() then
+        print("|cff4FC778Wick's Totems|r: can't rebuild CD bar in combat.")
+        return
+    end
+    if self.icons then
+        for _, b in pairs(self.icons) do
+            b:Hide(); b:ClearAllPoints(); b:SetParent(nil)
+        end
+    end
+    self.icons = nil
+    self.entries = nil
+    if self.host then
+        self.host:Hide(); self.host:ClearAllPoints(); self.host:SetParent(nil)
+    end
+    self.host = nil
+    self.cfg = nil
+    self.activeSpec = nil
+    self.initialized = false
+    self:Init()
+end
+
 function CT:Init()
     if self.initialized then return end
     if not WT.isShaman then return end   -- shaman-only
     self.initialized = true
+    print("|cff4FC778Wick's Totems|r CD bar init starting...")
 
     self.activeSpec = getActiveSpec()
     -- Filter to entries the player can use:
@@ -519,6 +551,8 @@ function CT:Init()
     tf:RegisterEvent("CHARACTER_POINTS_CHANGED")
     tf:SetScript("OnEvent", function() CT:RebuildForSpec() end)
 
+    print(("|cff4FC778Wick's Totems|r CD bar init done: %d entries, spec=%s"):format(
+        #visible, tostring(self.activeSpec or "(unknown)")))
     self:Refresh()
 end
 
