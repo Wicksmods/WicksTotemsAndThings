@@ -24,6 +24,22 @@ local ICON_SIZE = 32
 local ICON_GAP  = 3
 local PADDING   = 5
 
+-- Perf caches (set on Init / refreshed on entries change). The CLEU handler
+-- runs hundreds of times per second in raid combat; pre-computing these
+-- avoids per-event UnitGUID() calls and a linear walk over self.entries.
+local playerGUID = nil
+local flashByName = {}    -- [spellName] = entry, only for kind=="flash" entries
+
+local function rebuildFlashLookup(entries)
+    wipe(flashByName)
+    if not entries then return end
+    for _, e in ipairs(entries) do
+        if e.kind == "flash" and e.spellName then
+            flashByName[e.spellName] = e
+        end
+    end
+end
+
 -- ============================================================
 -- Tracked spells
 -- ============================================================
@@ -340,6 +356,9 @@ end
 
 function CT:Refresh()
     if not self.icons then return end
+    -- Skip the full per-entry aura+CD scan when the bar isn't on screen.
+    -- Cuts ~400 UnitBuff calls/sec when the user has the bar toggled off.
+    if not self.host or not self.host:IsShown() then return end
     for _, e in ipairs(self.entries) do
         local b = self.icons[e]
         if not b then -- skip
@@ -494,6 +513,8 @@ function CT:Init()
     -- yet loaded). PLAYER_TALENT_UPDATE will populate via RebuildForSpec
     -- once the data is ready.
     self.entries = visible
+    rebuildFlashLookup(visible)
+    playerGUID = UnitGUID("player")
 
     local host, cfg = buildHost(visible)
     self.host = host
@@ -527,20 +548,22 @@ function CT:Init()
     ef:RegisterUnitEvent("UNIT_AURA", "target")
     ef:SetScript("OnEvent", function() CT:Refresh() end)
 
-    -- Combat log: flash entries (Windfury Weapon proc, etc.)
+    -- Combat log: flash entries (Windfury Weapon proc, etc.).
+    -- Hot path — fires hundreds of times per second in raids. Early-out
+    -- when there are no flash entries (most non-Enhance specs), then use
+    -- the cached playerGUID + flashByName lookup to avoid per-event
+    -- UnitGUID() calls and the linear walk over self.entries.
     local cl = CreateFrame("Frame")
     cl:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
     cl:SetScript("OnEvent", function()
+        if not next(flashByName) then return end
         local _, _, _, srcGUID, _, _, _, _, _, _, _, _, spellName = CombatLogGetCurrentEventInfo()
-        if srcGUID ~= UnitGUID("player") then return end
-        if not spellName then return end
-        for _, e in ipairs(self.entries) do
-            if e.kind == "flash" and e.spellName == spellName then
-                local b = self.icons[e]
-                if b then
-                    b._flashUntil = GetTime() + (e.flashDuration or 1.5)
-                end
-            end
+        if srcGUID ~= (playerGUID or UnitGUID("player")) then return end
+        local e = spellName and flashByName[spellName]
+        if not e then return end
+        local b = self.icons[e]
+        if b then
+            b._flashUntil = GetTime() + (e.flashDuration or 1.5)
         end
     end)
 
@@ -601,6 +624,7 @@ function CT:RebuildForSpec()
         end
     end
     self.entries = visible
+    rebuildFlashLookup(visible)
 
     -- Resize host bar to fit new icon count
     local count = #visible
@@ -663,6 +687,7 @@ function CT:Show()
     if not self.host then return end
     self.host:Show()
     self.cfg.hidden = false
+    self:Refresh()  -- give immediate state instead of up-to-0.25s blank
 end
 function CT:Hide()
     if not self.host then return end

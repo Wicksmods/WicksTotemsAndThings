@@ -17,7 +17,17 @@ local AC = WT.AffectedCount
 
 AC.active = {}    -- [slot] = { name = ..., affected = N, lastScan = t }
 AC.poll = nil     -- ticker frame
-local POLL_INTERVAL = 0.5
+local POLL_INTERVAL = 0.75    -- bumped from 0.5 to halve raid-CPU cost; UX delta is sub-second
+
+-- Pre-built unit-name pools to avoid per-poll string concatenation.
+-- In a 25-man this saves ~30 string allocations per poll cycle.
+local RAID_UNIT_NAMES  = {}
+local PARTY_UNIT_NAMES = { "party1", "party2", "party3", "party4" }
+for i = 1, 40 do RAID_UNIT_NAMES[i] = "raid" .. i end
+
+-- Single buffer reused across calls (returned by unitsInGroup). Caller
+-- treats it as read-only between calls; no concurrency in WoW Lua.
+local unitsBuffer = {}
 
 -- LibRangeCheck checker (resolved lazily on first scan since LibStub
 -- finishes loading at addon-load time, but the lib's spell tables
@@ -58,23 +68,23 @@ WT.unitInRangeYards = unitInRangeYards
 -- ============================================================
 
 local function unitsInGroup()
-    local list = {}
+    wipe(unitsBuffer)
     if IsInRaid() then
         local n = (GetNumGroupMembers and GetNumGroupMembers())
                or (GetNumRaidMembers and GetNumRaidMembers())
                or 0
-        for i = 1, n do table.insert(list, "raid" .. i) end
+        for i = 1, n do unitsBuffer[#unitsBuffer + 1] = RAID_UNIT_NAMES[i] end
     elseif IsInGroup() then
-        table.insert(list, "player")
+        unitsBuffer[#unitsBuffer + 1] = "player"
         for i = 1, 4 do
-            if UnitExists("party" .. i) then
-                table.insert(list, "party" .. i)
+            if UnitExists(PARTY_UNIT_NAMES[i]) then
+                unitsBuffer[#unitsBuffer + 1] = PARTY_UNIT_NAMES[i]
             end
         end
     else
-        table.insert(list, "player")
+        unitsBuffer[#unitsBuffer + 1] = "player"
     end
-    return list
+    return unitsBuffer
 end
 
 -- Returns affected count for a totem with given range token.
