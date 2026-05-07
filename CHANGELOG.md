@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.2.4 - 2026-05-07
+
+Performance pass. No feature changes; addressing reported in-combat lag and stutter, especially in 25-man raids.
+
+- **CooldownTracker**: 0.25s poller now early-exits when the bar is hidden. Cuts ~400 UnitBuff calls per second when the user has the bar toggled off.
+- **CooldownTracker**: combat-log handler now early-exits when there are no flash-kind entries, uses a cached player GUID, and looks up flash spells via a pre-built spellName table instead of walking every entry. Negligible per-event cost in raid combat for non-Enhance specs.
+- **SwingTimer**: text labels (formatted seconds) now refresh at 10Hz instead of every frame, and skip the SetText when the formatted value didn't change. Bar fill remains every-frame for smooth animation.
+- **SwingTimer**: OnUpdate fully suspends after the post-combat fade-out completes. Combat-enter and the Show command re-attach it. No background wakeups while idle.
+- **RangeWarning**: UNIT_AURA-driven Check is now throttled to 0.2s and skipped entirely when no buff totems are active. Stops a per-aura-tick storm in raids from re-walking 4 totem slots × 40 buff slots.
+- **AffectedCount**: poll interval relaxed from 0.5s to 0.75s. Pre-built unit-name pools and a reused buffer eliminate per-poll string concatenation and table allocation, saving ~30 allocations per cycle in 25-mans.
+
 ## v0.2.3 - 2026-05-06
 
 CD bar recovery + diagnostic visibility.

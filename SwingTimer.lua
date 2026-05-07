@@ -148,34 +148,64 @@ end
 -- ============================================================
 -- OnUpdate: drive bar fill + auto-fade out of combat
 -- ============================================================
+-- Bar fill (SetValue) needs every-frame updates to stay smooth.
+-- Text labels (SetText with formatted seconds) only need ~10Hz; doing them
+-- every frame produces 100+ string allocations/sec for no visual gain.
+local TEXT_UPDATE_INTERVAL = 0.1
+local textAccum = 0
+local lastMHText, lastOHText = "", ""
+
 local function onUpdate(self, elapsed)
+    -- Skip everything when hidden (user toggled off, or pre-combat fade done).
+    if not SW.host or not SW.host:IsShown() then return end
+
     local now = GetTime()
-    local function setBar(bar, info)
-        if not bar then return end
+    textAccum = textAccum + elapsed
+    local doText = textAccum >= TEXT_UPDATE_INTERVAL
+    if doText then textAccum = 0 end
+
+    local function setBar(bar, info, lastTextRef)
+        if not bar then return lastTextRef end
         if info.duration <= 0 then
-            bar:SetValue(0); bar._timeText:SetText("")
-            return
+            bar:SetValue(0)
+            if doText and lastTextRef ~= "" then
+                bar._timeText:SetText("")
+                return ""
+            end
+            return lastTextRef
         end
         local since = now - info.lastSwing
         local remaining = info.duration - since
         if remaining < 0 then remaining = 0 end
-        local pct = 0
-        if info.duration > 0 then pct = math.min(1, since / info.duration) end
-        bar:SetValue(pct)
-        if remaining > 0 then
-            bar._timeText:SetText(string.format("%.1fs", remaining))
-        else
-            bar._timeText:SetText("ready")
+        bar:SetValue(math.min(1, since / info.duration))
+        if doText then
+            local newText
+            if remaining > 0 then
+                newText = string.format("%.1fs", remaining)
+            else
+                newText = "ready"
+            end
+            -- Skip SetText when the formatted string didn't change; SetText
+            -- triggers a font-string redraw even when the value is identical.
+            if newText ~= lastTextRef then
+                bar._timeText:SetText(newText)
+                return newText
+            end
         end
+        return lastTextRef
     end
-    setBar(SW.mhBar, SW._mh)
-    setBar(SW.ohBar, SW._oh)
+    lastMHText = setBar(SW.mhBar, SW._mh, lastMHText)
+    lastOHText = setBar(SW.ohBar, SW._oh, lastOHText)
 
     if not SW._inCombat and SW._fadeAt > 0 and now > SW._fadeAt then
         if SW.host then SW.host:Hide() end
         SW._fadeAt = 0
+        -- Suspend OnUpdate entirely; combat-enter re-attaches it. Saves
+        -- ~60-200 wakeups/sec while the player is idle out of combat.
+        self:SetScript("OnUpdate", nil)
     end
 end
+SW._onUpdate = onUpdate
 
 -- ============================================================
 -- Init
@@ -225,6 +255,10 @@ function SW:Init()
             SW._inCombat = true
             SW._fadeAt = 0
             if not cfg.hidden and SW.host then SW.host:Show() end
+            -- Re-attach OnUpdate if it was suspended after the last fade-out.
+            if SW._updFrame and not SW._updFrame:GetScript("OnUpdate") then
+                SW._updFrame:SetScript("OnUpdate", SW._onUpdate)
+            end
         elseif event == "PLAYER_REGEN_ENABLED" or event == "PLAYER_LEAVE_COMBAT" then
             SW._inCombat = false
             SW._fadeAt = GetTime() + 4
@@ -233,13 +267,23 @@ function SW:Init()
 
     -- Drive the bars
     local upd = CreateFrame("Frame")
+    SW._updFrame = upd
     upd:SetScript("OnUpdate", onUpdate)
+end
+
+-- Re-attach OnUpdate if it was suspended (after fade-out completed).
+-- Called from Show(), Toggle(), and combat-enter so the bars resume.
+function SW:_attachUpdate()
+    if SW._updFrame and not SW._updFrame:GetScript("OnUpdate") then
+        SW._updFrame:SetScript("OnUpdate", SW._onUpdate)
+    end
 end
 
 function SW:Show()
     if not self.host then return end
     self.host:Show()
     self.cfg.hidden = false
+    self:_attachUpdate()
 end
 function SW:Hide()
     if not self.host then return end

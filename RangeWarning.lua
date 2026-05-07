@@ -368,9 +368,22 @@ end)
 
 WT:On("AFFECTED_UPDATED", function() RW:Check() end)
 
+-- UNIT_AURA fires on every buff/debuff change, very high frequency in raids.
+-- Two guards before triggering Check() (which scans 4 totem slots × 40 buff
+-- slots): no-op if there's no buff totem to check, then a 0.2s throttle so
+-- a burst of aura events still produces at most one Check call.
+local UNIT_AURA_THROTTLE = 0.2
+local lastAuraCheck = 0
+
 local auraFrame = CreateFrame("Frame")
 auraFrame:RegisterUnitEvent("UNIT_AURA", "player")
-auraFrame:SetScript("OnEvent", function() RW:Check() end)
+auraFrame:SetScript("OnEvent", function()
+    if not anyBuffTotemActive() then return end
+    local now = GetTime()
+    if now - lastAuraCheck < UNIT_AURA_THROTTLE then return end
+    lastAuraCheck = now
+    RW:Check()
+end)
 
 function RW:SetEnabled(flag)
     self.enabled = flag and true or false
