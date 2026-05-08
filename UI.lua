@@ -724,6 +724,13 @@ local function makeSlider(parent, getter, onChange, minVal, maxVal, step)
     local dragging = false
     local function onUpdate()
         if not dragging then return end
+        -- Bullet-proof release detection: OnMouseUp doesn't always fire on
+        -- our frame when the user drags off the slider area before letting
+        -- go. Poll the global mouse button state every frame instead.
+        if not IsMouseButtonDown("LeftButton") then
+            dragging = false
+            return
+        end
         local mx = GetCursorPosition()
         local effScale = frame:GetEffectiveScale()
         local left = frame:GetLeft() * effScale
@@ -826,7 +833,7 @@ local function buildOptionsPane(parent)
         function() return WicksTotemsDB.bar.scale or 1.0 end,
         function(v) if WT.TotemBar and WT.TotemBar.SetScale then WT.TotemBar:SetScale(v) end end)
 
-    barRow("Cooldown / Proc Bar",
+    barRow("CD Bar",
         function()
             WicksTotemsDB.cd = WicksTotemsDB.cd or {}
             return WicksTotemsDB.cd.hidden
