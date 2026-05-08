@@ -27,9 +27,10 @@ local C_TEXT_DIM    = { 0.42, 0.35, 0.54, 1 }
 local FRAME_SIZE = 44
 local ICON_SIZE  = 36
 
-PA.floaters = {}     -- short -> floater frame
-PA.entries  = {}     -- visible entries for current spec
-PA.editMode = false
+PA.floaters    = {}  -- short -> currently-visible floater frame
+PA.entries     = {}  -- visible entries for current spec/talent set
+PA.editMode    = false
+PA._allFrames  = {}  -- short -> floater frame (lifetime: addon load) — pool
 
 -- ============================================================
 -- Brand chrome helpers (mirrors CooldownTracker)
@@ -332,7 +333,11 @@ function PA:Init()
             if allowed then
                 visibleIndex = visibleIndex + 1
                 self.entries[#self.entries + 1] = e
-                self.floaters[e.short] = buildFloater(e, visibleIndex)
+                -- Reuse from pool if already built (Init might be re-run after
+                -- Rebuild fired pre-Init; without pooling we'd duplicate).
+                local f = self._allFrames[e.short] or buildFloater(e, visibleIndex)
+                self._allFrames[e.short] = f
+                self.floaters[e.short] = f
             end
         end
     end
@@ -422,24 +427,23 @@ function PA:ResetPositions()
     self:Refresh()
 end
 
--- Tear down + rebuild floaters. Used after a respec or talent reset so
--- the visible set re-filters by current talents.
+-- Re-filter floaters by current talents/spec. Reuses existing floater
+-- frames from the pool (no destroy / re-create) so we never orphan a
+-- frame that might still be rendering.
 function PA:Rebuild()
+    if not self.initialized then
+        -- Init handles the initial filter — defer to it.
+        self:Init()
+        return
+    end
     if InCombatLockdown() then
         self._rebuildPending = true
         return
     end
-    -- Destroy current floaters
-    for _, f in pairs(self.floaters) do
-        if f._missPulse then f._missPulse:Stop() end
-        f:Hide()
-        f:ClearAllPoints()
-        f:SetParent(nil)
-    end
+
     self.floaters = {}
     self.entries  = {}
 
-    -- Re-run filter + recreate floaters
     local activeSpec = WT.GetActiveSpec and WT.GetActiveSpec() or nil
     local talentRank = WT.TalentRank or function() return 0 end
     local visibleIndex = 0
@@ -456,10 +460,21 @@ function PA:Rebuild()
             if allowed then
                 visibleIndex = visibleIndex + 1
                 self.entries[#self.entries + 1] = e
-                self.floaters[e.short] = buildFloater(e, visibleIndex)
+                local f = self._allFrames[e.short] or buildFloater(e, visibleIndex)
+                self._allFrames[e.short] = f
+                self.floaters[e.short] = f
             end
         end
     end
+
+    -- Hide any pool frames that aren't in the new visible set
+    for short, f in pairs(self._allFrames) do
+        if not self.floaters[short] then
+            if f._missPulse then f._missPulse:Stop() end
+            f:Hide()
+        end
+    end
+
     self:Refresh()
 end
 
