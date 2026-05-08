@@ -75,12 +75,14 @@ TRACKED = {
     -- Shield buffs — track stack count. Lightning Shield is a baseline
     -- offensive shield used by Enhance/Elemental; Water Shield is the
     -- mana-restore shield used by Resto. Both are Player buffs.
+    -- Filter via spellKnown (ability-based) instead of spec — any shaman
+    -- who has learned the spell sees its tracker, regardless of spec.
     { aura = "Lightning Shield", kind = "proc", short = "LSh", category = "shield",
-      flashWhenMissing = true,
+      spell = "Lightning Shield", flashWhenMissing = true,
       displayName = "Lightning Shield charges",
       icon = "Interface\\Icons\\Spell_Nature_LightningShield" },
     { aura = "Water Shield",     kind = "proc", short = "WSh", category = "shield",
-      spec = "restoration", flashWhenMissing = true,
+      spell = "Water Shield",    flashWhenMissing = true,
       displayName = "Water Shield charges",
       icon = "Interface\\Icons\\Ability_Shaman_WaterShield" },
 

@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.3.8 - 2026-05-08
+
+Per-preset element order, weapon imbue tracking, ability-based shield detection.
+
+**New:**
+
+- **Weapon imbue boxes** — two new boxes (MH + OH, stacked vertically) on the right side of the totem bar, opposite the ankh. Tooltip-scans the equipped weapons for `Windfury / Rockbiter / Flametongue / Frostbrand / Earthliving` and shows the matching icon. Refreshes on `UNIT_INVENTORY_CHANGED` and `PLAYER_EQUIPMENT_CHANGED`. OH box auto-hides when not dual-wielding.
+- **Per-preset element drop order.** Each preset stores its own `elementOrder` (Caster preset can drop fire/earth/water/air; Melee preset can drop air/earth/water/fire — independent). Switching the active preset re-anchors the totem strip and rebuilds the drop-all `/castsequence` macro live.
+- **Drop order UI** in the Presets tab. Four element buttons under the hint show the active preset's current order; click any (except the leftmost) to shift it one slot left. `/wtt order earth fire water air` slash still works in parallel.
+- **Shields toggle.** New "Show shields" checkbox in Options → Proc Floaters hides the entire shield-category set (Lightning / Water / Earth Shield) without affecting other proc floaters.
+
+**Fixed / changed:**
+
+- **Water Shield** is no longer Restoration-only — switched to ability-based detection (`spellKnown("Water Shield")`). Any shaman who has learned the spell sees the floater regardless of spec. Lightning Shield now uses the same spellKnown check.
+- **ProcAlerts filter** extended: precedence is now talent (per-ability) > spec > spell (ability-based) > always-allowed. Plus the global shields-enabled toggle filters category=shield entries first.
+- **Main panel height** bumped 500 → 520 to keep the Twist section inside the chrome after the "Show shields" row was added.
+- **Marketing thumbnail** regenerated with the new in-game screenshot showing shields + ankh + totem strip + imbue boxes + swing timer.
+
 ## v0.3.7 - 2026-05-07
 
 Critical fix: ProcAlerts crash from `UnitBuff` signature mismatch.
