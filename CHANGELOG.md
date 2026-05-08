@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.3.3 - 2026-05-07
+
+Per-talent filtering replaces the cruder spec-tag filter.
+
+- New `WT.TalentRank(name)` helper scans all talent tabs and returns the player's current rank.
+- TRACKED entries now use `talent = "<Name>"` instead of `spec = "<spec>"` for talent-gated procs (Stormstrike, Flurry, Earth Shield, Mana Tide, Clearcasting / Elemental Focus, Elemental Devastation, Eye of the Storm, Lightning Overload).
+- Filter precedence is talent (per-ability) > spec (whole-tree) > always-allowed.
+- ProcAlerts now rebuilds floaters on `PLAYER_TALENT_UPDATE` / `CHARACTER_POINTS_CHANGED` so respecs immediately re-filter the visible set without `/reload`.
+- Combat-locked rebuilds are queued and flushed on `PLAYER_REGEN_ENABLED`.
+
+Result: an Elemental shaman who didn't spec Eye of the Storm no longer sees its floater. A Resto shaman who hasn't taken Earth Shield (yet) won't see that one either.
+
 ## v0.3.2 - 2026-05-07
 
 - Slider release fix: dragging the size slider's thumb past the slider's hit area no longer leaves it stuck to the cursor. Release detection now polls `IsMouseButtonDown` every frame instead of relying solely on `OnMouseUp`.
