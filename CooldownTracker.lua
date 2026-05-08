@@ -190,15 +190,19 @@ end
 -- TBC UnitBuff/UnitDebuff returns:
 --   name, rank, icon, count, debuffType, duration, expirationTime, ...
 -- ============================================================
+-- UnitBuff/UnitDebuff in TBC 2.5.5 return:
+--   1: name, 2: icon, 3: count, 4: debuffType, 5: duration, 6: expirationTime, ...
+-- (Older Classic revisions had a `rank` at position 2 — that's gone in 2.5.5,
+-- so `count` lives at position 3, not 4.)
 local function findAura(unit, name, harmful)
     if not unit or unit == "" then return nil end
     if unit ~= "player" and not UnitExists(unit) then return nil end
     local fn = harmful and UnitDebuff or UnitBuff
     for i = 1, 40 do
-        local n, _, _, count, _, duration, expirationTime = fn(unit, i)
+        local n, _, count, _, duration, expirationTime = fn(unit, i)
         if not n then return nil end
         if n == name then
-            return n, count or 0, expirationTime or 0, duration or 0
+            return n, tonumber(count) or 0, tonumber(expirationTime) or 0, tonumber(duration) or 0
         end
     end
     return nil
