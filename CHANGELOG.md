@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.3.2 - 2026-05-07
+
+- Slider release fix: dragging the size slider's thumb past the slider's hit area no longer leaves it stuck to the cursor. Release detection now polls `IsMouseButtonDown` every frame instead of relying solely on `OnMouseUp`.
+- "Cooldown / Proc Bar" section in Options renamed to "CD Bar" since procs split into their own floaters in v0.3.0.
+- Water Shield floater is now Restoration-only. Lightning Shield stays available to all specs (Enhance and Elemental both use it).
+
 ## v0.3.1 - 2026-05-07
 
 - **Shield missing-buff pulse.** Lightning Shield, Water Shield, and Earth Shield (target) floaters stay visible when the buff is missing, pulsing subtly between 25% and 55% alpha as a refresh reminder. Snap to full brightness + autocast shine the moment the shield goes back up.

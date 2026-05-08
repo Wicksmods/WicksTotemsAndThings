@@ -80,7 +80,7 @@ TRACKED = {
       displayName = "Lightning Shield charges",
       icon = "Interface\\Icons\\Spell_Nature_LightningShield" },
     { aura = "Water Shield",     kind = "proc", short = "WSh",
-      flashWhenMissing = true,
+      spec = "restoration", flashWhenMissing = true,
       displayName = "Water Shield charges",
       icon = "Interface\\Icons\\Ability_Shaman_WaterShield" },
 
