@@ -368,6 +368,15 @@ end)
 
 WT:On("AFFECTED_UPDATED", function() RW:Check() end)
 
+-- Totem destroyed alert: banner + sound when an enemy kills a totem before
+-- its expected expiration. Re-uses the OOR banner machinery.
+WT:On("TOTEM_DESTROYED", function(element, name)
+    flashWarning("TOTEM DESTROYED: " .. (name or element or "?"))
+    if cfg().sound then
+        PlaySound(SOUNDKIT and SOUNDKIT.RAID_WARNING or 8959, "Master")
+    end
+end)
+
 -- UNIT_AURA fires on every buff/debuff change, very high frequency in raids.
 -- Two guards before triggering Check() (which scans 4 totem slots × 40 buff
 -- slots): no-op if there's no buff totem to check, then a 0.2s throttle so

@@ -109,11 +109,44 @@ function AC:CountFor(rangeToken)
 end
 
 -- ============================================================
--- Active totem tracking
+-- Active totem tracking + destruction detection
 -- ============================================================
+
+-- previousActive[slot] = snapshot of last seen totem state. Used to detect
+-- when a totem disappeared before its expected expiration (= destroyed by
+-- enemy, vs natural expire or recall).
+local previousActive = {}
+
+-- Detect Totemic Call so we don't false-flag a recall as destruction.
+-- Set true when the player casts Totemic Call; cleared after a short
+-- window during which all 4 totems vanish "expectedly".
+local recallExpected = false
+local recallFrame = CreateFrame("Frame")
+recallFrame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+recallFrame:SetScript("OnEvent", function(_, _, unit, _, spellID)
+    if unit ~= "player" then return end
+    -- Spell name comparison (TBC sends spellID as 3rd arg, name varies)
+    local name = spellID and GetSpellInfo and GetSpellInfo(spellID) or nil
+    if name == "Totemic Call" or name == "Recall Totems" then
+        recallExpected = true
+        C_Timer = C_Timer or {}
+        if C_Timer.After then
+            C_Timer.After(2, function() recallExpected = false end)
+        else
+            -- Fallback: clear via OnUpdate after 2s
+            local t = 0
+            local f = CreateFrame("Frame")
+            f:SetScript("OnUpdate", function(self, e)
+                t = t + e
+                if t >= 2 then recallExpected = false; self:SetScript("OnUpdate", nil) end
+            end)
+        end
+    end
+end)
 
 local function refreshActive()
     local any = false
+    local now = GetTime()
     for slot = 1, 4 do
         local have, name, startTime, duration = GetTotemInfo(slot)
         if have and name and name ~= "" then
@@ -121,7 +154,7 @@ local function refreshActive()
             local meta = WT:GetTotemMeta(name)
             local range = meta and meta.range or 20
             local affected = AC:CountFor(range)
-            AC.active[slot] = {
+            local info = {
                 name      = name,
                 element   = WT.ELEMENT_BY_SLOT[slot],
                 startTime = startTime,
@@ -130,8 +163,23 @@ local function refreshActive()
                 kind      = meta and meta.kind,
                 affected  = affected,
             }
+            AC.active[slot] = info
+            previousActive[slot] = info
         else
+            -- Slot just emptied? Detect destruction.
+            local prev = previousActive[slot]
+            if prev and not recallExpected then
+                local expectedExpire = (prev.startTime or 0) + (prev.duration or 0)
+                local timeLeft = expectedExpire - now
+                -- Destroyed if more than 5s of duration was remaining.
+                -- (Natural expirations land within +/- 1s; recalls are caught
+                -- by the recallExpected flag above.)
+                if timeLeft > 5 then
+                    WT:Emit("TOTEM_DESTROYED", prev.element, prev.name)
+                end
+            end
             AC.active[slot] = nil
+            previousActive[slot] = nil
         end
     end
     WT:Emit("AFFECTED_UPDATED", AC.active)
