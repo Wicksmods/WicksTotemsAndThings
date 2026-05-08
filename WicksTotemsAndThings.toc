@@ -2,7 +2,7 @@
 ## Title: Wick's Totems and Things
 ## Notes: Totem groups, affected-player counts, and bindings for TBC shamans.
 ## Author: Wick
-## Version: 0.2.6
+## Version: 0.3.0
 ## SavedVariables: WicksTotemsDB
 ## SavedVariablesPerCharacter: WicksTotemsCharDB
 
@@ -19,5 +19,6 @@ AffectedCount.lua
 TotemFrameOverlay.lua
 RangeWarning.lua
 CooldownTracker.lua
+ProcAlerts.lua
 SwingTimer.lua
 UI.lua

@@ -903,6 +903,26 @@ local function buildOptionsPane(parent)
     cb:SetPoint("TOPLEFT", PADDING + 4, y)
     y = y - rowH - sectionGap
 
+    -- ----- Proc Floaters -----
+    makeSectionHeader(pane, "Proc Floaters", y); y = y - 22
+
+    cb = makeCheckbox(pane, "Edit mode (show all for positioning)",
+        function() return WT.ProcAlerts and WT.ProcAlerts.editMode end,
+        function(v)
+            if WT.ProcAlerts and WT.ProcAlerts.SetEditMode then
+                WT.ProcAlerts:SetEditMode(v)
+            end
+        end)
+    cb:SetPoint("TOPLEFT", PADDING + 4, y)
+
+    local resetProcsBtn = makeSmallButton(pane, "Reset positions", function()
+        if WT.ProcAlerts and WT.ProcAlerts.ResetPositions then
+            WT.ProcAlerts:ResetPositions()
+        end
+    end)
+    resetProcsBtn:SetPoint("TOPLEFT", PADDING + 270, y - 1)
+    y = y - rowH - sectionGap
+
     -- ----- Totem Twisting -----
     -- Default totem pairs per element. Toggling on populates the saved-vars
     -- entry; toggling off clears `enabled` so single-cast resumes.

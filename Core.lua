@@ -211,6 +211,21 @@ SlashCmdList.WICKSTOTEMS = function(input)
         end
         return
     end
+    if input == "resetprocs" then
+        if WT.ProcAlerts and WT.ProcAlerts.ResetPositions then
+            WT.ProcAlerts:ResetPositions()
+            print("|cff4FC778Wick's Totems|r proc floaters reset to default grid.")
+        end
+        return
+    end
+    if input == "procedit" then
+        if WT.ProcAlerts and WT.ProcAlerts.SetEditMode then
+            local on = not (WT.ProcAlerts.editMode or false)
+            WT.ProcAlerts:SetEditMode(on)
+            print(("|cff4FC778Wick's Totems|r proc edit mode: %s"):format(on and "ON" or "off"))
+        end
+        return
+    end
     if input == "swing" then
         if WT.SwingTimer and WT.SwingTimer.Toggle then WT.SwingTimer:Toggle() end
         return

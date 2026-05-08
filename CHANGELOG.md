@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.3.0 - 2026-05-07
+
+Big refactor: procs and flashes split out of the cooldown bar into individual draggable floaters.
+
+- **CD bar** now ONLY shows kind=cd / kind=both entries (the long cooldowns + spec talents). No more cluttered mixed-purpose row.
+- **ProcAlerts module (new):** every proc/flash entry becomes its own 44x44 framed icon with full Wick chrome (void background, fel-green corner brackets, 1px border). Each is independently draggable.
+- **Hidden when not active:** by default the floater is invisible. The frame appears only when the proc/buff/debuff fires, complete with autocast shine for proc-kind entries.
+- **Edit mode** in Options forces all floaters visible (greyed) so you can drag them into position without waiting for procs. Toggle via Options or `/wtt procedit`.
+- **Default layout:** 4-column grid below center on first run. `/wtt resetprocs` returns floaters to default positions.
+- **Per-floater positions** persist in `WicksTotemsDB.procs.perProc[<short>]`.
+
 ## v0.2.6 - 2026-05-07
 
 Coverage gaps from common shaman addons.
