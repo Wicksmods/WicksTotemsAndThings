@@ -51,7 +51,10 @@ end
 
 -- icon = explicit fallback texture path. Used when GetSpellTexture fails
 -- (passive talents like Maelstrom Weapon aren't always resolvable by name).
-local TRACKED = {
+-- Exposed via WT.TRACKED so ProcAlerts can iterate the same source-of-truth
+-- without duplicating the table.
+local TRACKED
+TRACKED = {
     -- Long cooldowns
     { spell = "Reincarnation",         kind = "cd",   short = "Ankh", icon = "Interface\\Icons\\Spell_Shaman_Reincarnation" },
     { spell = "Bloodlust",             kind = "both", aura = "Bloodlust",            short = "Lust", icon = "Interface\\Icons\\Spell_Nature_Bloodlust" },
@@ -206,6 +209,11 @@ local function spellKnown(name)
     end
     return false
 end
+
+-- Expose the tracked list + helpers for the ProcAlerts module.
+WT.TRACKED            = TRACKED
+WT.TrackerFindAura    = findAura
+WT.TrackerSpellKnown  = spellKnown
 
 -- Returns "elemental" / "enhancement" / "restoration" / nil based on the
 -- highest-point talent tab. Shaman tabs in TBC: 1 Elemental, 2 Enhancement,
@@ -528,10 +536,9 @@ function CT:Init()
     print("|cff4FC778Wick's Totems|r CD bar init starting...")
 
     self.activeSpec = getActiveSpec()
-    -- Filter to entries the player can use:
-    --   - kind=cd / kind=both: filter by spellKnown
-    --   - kind=proc / kind=flash: always show, UNLESS a spec field is set
-    --     and the player's active spec doesn't match
+    -- v0.3: CD bar now ONLY shows kind=cd and kind=both entries.
+    -- Procs and flashes are rendered as individual draggable floaters
+    -- by the ProcAlerts module (see ProcAlerts.lua).
     local visible = {}
     for _, e in ipairs(TRACKED) do
         local target = e.spell or e.aura
@@ -539,7 +546,7 @@ function CT:Init()
         if not specOK then
             -- skip — entry is for a different spec
         elseif e.kind == "proc" or e.kind == "flash" then
-            table.insert(visible, e)
+            -- skip — handled by ProcAlerts as a floater
         elseif spellKnown(target) then
             table.insert(visible, e)
         end
