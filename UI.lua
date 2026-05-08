@@ -930,18 +930,32 @@ local function buildOptionsPane(parent)
     resetProcsBtn:SetPoint("TOPLEFT", PADDING + 270, y - 1)
     y = y - rowH
 
-    -- Floater scale slider — applies to all proc + shield floaters
-    local sizeLbl2 = NewText(pane, 10, C_TEXT_DIM)
-    sizeLbl2:SetPoint("TOPLEFT", PADDING + 4, y - 3)
-    sizeLbl2:SetText("Size")
+    -- Procs size slider (applies to non-shield proc floaters)
+    local procsLbl = NewText(pane, 10, C_TEXT_DIM)
+    procsLbl:SetPoint("TOPLEFT", PADDING + 4, y - 3)
+    procsLbl:SetText("Procs size")
     local procSlider = makeSlider(pane,
         function()
             WicksTotemsDB.procs = WicksTotemsDB.procs or {}
             return WicksTotemsDB.procs.scale or 1.0
         end,
-        function(v) if WT.ProcAlerts and WT.ProcAlerts.SetScale then WT.ProcAlerts:SetScale(v) end end,
+        function(v) if WT.ProcAlerts and WT.ProcAlerts.SetScale then WT.ProcAlerts:SetScale(v, "proc") end end,
         0.6, 1.8, 0.05)
-    procSlider:SetPoint("TOPLEFT", PADDING + 40, y - 3)
+    procSlider:SetPoint("TOPLEFT", PADDING + 80, y - 3)
+    y = y - rowH
+
+    -- Shields size slider (applies to shield-category floaters only)
+    local shieldsLbl = NewText(pane, 10, C_TEXT_DIM)
+    shieldsLbl:SetPoint("TOPLEFT", PADDING + 4, y - 3)
+    shieldsLbl:SetText("Shields size")
+    local shieldSlider = makeSlider(pane,
+        function()
+            WicksTotemsDB.procs = WicksTotemsDB.procs or {}
+            return WicksTotemsDB.procs.shieldScale or 1.0
+        end,
+        function(v) if WT.ProcAlerts and WT.ProcAlerts.SetScale then WT.ProcAlerts:SetScale(v, "shield") end end,
+        0.6, 1.8, 0.05)
+    shieldSlider:SetPoint("TOPLEFT", PADDING + 80, y - 3)
     y = y - rowH - sectionGap
 
     -- ----- Totem Twisting -----

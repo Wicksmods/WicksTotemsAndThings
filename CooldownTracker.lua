@@ -75,11 +75,11 @@ TRACKED = {
     -- Shield buffs — track stack count. Lightning Shield is a baseline
     -- offensive shield used by Enhance/Elemental; Water Shield is the
     -- mana-restore shield used by Resto. Both are Player buffs.
-    { aura = "Lightning Shield", kind = "proc", short = "LSh",
+    { aura = "Lightning Shield", kind = "proc", short = "LSh", category = "shield",
       flashWhenMissing = true,
       displayName = "Lightning Shield charges",
       icon = "Interface\\Icons\\Spell_Nature_LightningShield" },
-    { aura = "Water Shield",     kind = "proc", short = "WSh",
+    { aura = "Water Shield",     kind = "proc", short = "WSh", category = "shield",
       spec = "restoration", flashWhenMissing = true,
       displayName = "Water Shield charges",
       icon = "Interface\\Icons\\Ability_Shaman_WaterShield" },
@@ -104,7 +104,7 @@ TRACKED = {
 
     -- Earth Shield charges on target (Restoration, 41-pt talent in TBC)
     { aura = "Earth Shield",           kind = "proc",  short = "ES", unit = "target", harmful = false,
-      talent = "Earth Shield", flashWhenMissing = true,
+      category = "shield", talent = "Earth Shield", flashWhenMissing = true,
       displayName = "Earth Shield (target)",
       icon = "Interface\\Icons\\Spell_Nature_SkinofEarth" },
 

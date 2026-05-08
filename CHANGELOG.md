@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.3.5 - 2026-05-07
+
+- New `category = "shield"` field on TRACKED entries marks Lightning Shield, Water Shield, and Earth Shield as their own class (always-displayed with the missing-buff pulse), distinct from regular procs.
+- **Two scale sliders** in Options → Proc Floaters: "Procs size" sizes the regular floaters (Stormstrike, Flurry, Sated, Clearcasting, etc), "Shields size" sizes the always-on shield floaters independently.
+- Per-category global scale (`procs.scale` vs `procs.shieldScale`) still multiplies with each floater's per-entry override saved in `procs.perProc[<short>].scale`.
+
 ## v0.3.4 - 2026-05-07
 
 - Main panel height bumped from 420 to 500 so the Options tab content (Proc Floaters + Twist sections) no longer spills out of the chrome.
