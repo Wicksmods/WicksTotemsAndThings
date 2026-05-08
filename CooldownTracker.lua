@@ -94,50 +94,53 @@ TRACKED = {
     { spell = "Tidal Force",           kind = "both", aura = "Tidal Force",          short = "TF",   icon = "Interface\\Icons\\Spell_Nature_TidalForce" },
     { spell = "Shamanistic Rage",      kind = "both", aura = "Shamanistic Rage",     short = "SR",   icon = "Interface\\Icons\\Spell_Nature_ShamanRage" },
 
-    -- Enhancement: Flurry stack (melee-crit haste window)
+    -- Talent-gated proc trackers. `talent` field = exact talent name; the
+    -- entry only shows when the player has at least 1 point in it.
+
+    -- Flurry (Enhancement, 5-pt)
     { aura = "Flurry",                 kind = "proc",  short = "Flurry",
-      spec = "enhancement",
+      talent = "Flurry",
       icon = "Interface\\Icons\\Ability_Ghoulfrenzy" },
 
-    -- Restoration: Earth Shield charges on target (cast on MT, decrements per heal)
+    -- Earth Shield charges on target (Restoration, 41-pt talent in TBC)
     { aura = "Earth Shield",           kind = "proc",  short = "ES", unit = "target", harmful = false,
-      spec = "restoration", flashWhenMissing = true,
+      talent = "Earth Shield", flashWhenMissing = true,
       displayName = "Earth Shield (target)",
       icon = "Interface\\Icons\\Spell_Nature_SkinofEarth" },
 
-    -- Restoration: Mana Tide Totem buff window
+    -- Mana Tide Totem buff window (Restoration, 41-pt)
     { aura = "Mana Tide Totem",        kind = "proc",  short = "MTBuff",
-      spec = "restoration", displayName = "Mana Tide buff",
+      talent = "Mana Tide Totem", displayName = "Mana Tide buff",
       icon = "Interface\\Icons\\Spell_Frost_SummonWaterElemental" },
 
-    -- Elemental: Clearcasting (Elemental Focus) — 2-charge mana-cost reduction
+    -- Clearcasting from Elemental Focus (Elemental, 5-pt)
     { aura = "Clearcasting",           kind = "proc",  short = "EF",
-      spec = "elemental", displayName = "Elemental Focus (Clearcasting)",
+      talent = "Elemental Focus", displayName = "Elemental Focus (Clearcasting)",
       icon = "Interface\\Icons\\Spell_Shadow_ManaBurn" },
 
-    -- Elemental: Elemental Devastation — melee-crit buff after a spell crit
+    -- Elemental Devastation (Elemental, 3-pt)
     { aura = "Elemental Devastation",  kind = "proc",  short = "ED",
-      spec = "elemental", displayName = "Elemental Devastation",
+      talent = "Elemental Devastation", displayName = "Elemental Devastation",
       icon = "Interface\\Icons\\Spell_Fire_SoulBurn" },
 
-    -- Elemental: Eye of the Storm — pushback resistance after taking damage
+    -- Eye of the Storm (Elemental, 3-pt)
     { aura = "Eye of the Storm",       kind = "proc",  short = "EotS",
-      spec = "elemental", displayName = "Eye of the Storm",
+      talent = "Eye of the Storm", displayName = "Eye of the Storm",
       icon = "Interface\\Icons\\Spell_Nature_EyeOfTheStorm" },
 
-    -- Elemental: Lightning Overload — combat-log flash on the proc'd second cast
+    -- Lightning Overload combat-log flash (Elemental, 5-pt)
     { kind = "flash", short = "LO", spellName = "Lightning Overload", flashDuration = 1.2,
-      spec = "elemental", displayName = "Lightning Overload",
+      talent = "Lightning Overload", displayName = "Lightning Overload",
       icon = "Interface\\Icons\\Spell_Lightning_LightningBolt01" },
 
-    -- Combat-log flash: Windfury Weapon proc — any melee shaman uses the imbue
+    -- Windfury Weapon proc — any melee shaman uses the imbue (no talent gate)
     { kind = "flash", short = "WF", displayName = "Windfury Weapon",
       spellName = "Windfury Attack", flashDuration = 1.5,
       icon = "Interface\\Icons\\Spell_Nature_Cyclone" },
 
-    -- Enhancement: Stormstrike target debuff (21-pt talent)
+    -- Stormstrike target debuff (Enhancement, 21-pt)
     { aura = "Stormstrike",            kind = "proc", short = "SS", unit = "target", harmful = true,
-      spec = "enhancement",
+      talent = "Stormstrike",
       icon = "Interface\\Icons\\Spell_Shaman_Stormstrike" },
 
     -- Note: Maelstrom Weapon was added in WotLK 3.0 — not present in TBC 2.5.5.
@@ -213,10 +216,30 @@ local function spellKnown(name)
     return false
 end
 
+-- Returns the player's current rank in a talent by name, or 0 if not
+-- specced / not found / talents not yet loaded. Used to filter TRACKED
+-- entries with a `talent` field per-talent rather than per-spec.
+local function talentRank(name)
+    if not GetNumTalentTabs or not GetTalentInfo then return 0 end
+    local ok, rank = pcall(function()
+        for tab = 1, (GetNumTalentTabs() or 0) do
+            local count = (GetNumTalents and GetNumTalents(tab)) or 0
+            for i = 1, count do
+                local tname, _, _, _, currentRank = GetTalentInfo(tab, i)
+                if tname == name then return currentRank or 0 end
+            end
+        end
+        return 0
+    end)
+    if ok then return rank or 0 end
+    return 0
+end
+
 -- Expose the tracked list + helpers for the ProcAlerts module.
 WT.TRACKED            = TRACKED
 WT.TrackerFindAura    = findAura
 WT.TrackerSpellKnown  = spellKnown
+WT.TalentRank         = talentRank
 
 -- Returns "elemental" / "enhancement" / "restoration" / nil based on the
 -- highest-point talent tab. Shaman tabs in TBC: 1 Elemental, 2 Enhancement,
@@ -545,9 +568,17 @@ function CT:Init()
     local visible = {}
     for _, e in ipairs(TRACKED) do
         local target = e.spell or e.aura
-        local specOK = (not e.spec) or (e.spec == self.activeSpec)
-        if not specOK then
-            -- skip — entry is for a different spec
+        -- Filter precedence: talent > spec > always-allowed
+        local allowed
+        if e.talent then
+            allowed = talentRank(e.talent) > 0
+        elseif e.spec then
+            allowed = (e.spec == self.activeSpec)
+        else
+            allowed = true
+        end
+        if not allowed then
+            -- skip — wrong spec or talent not specced
         elseif e.kind == "proc" or e.kind == "flash" then
             -- skip — handled by ProcAlerts as a floater
         elseif spellKnown(target) then
@@ -656,15 +687,23 @@ function CT:RebuildForSpec()
     end
     self.icons = {}
 
-    -- Re-filter entries
+    -- Re-filter entries (talent first, then spec, then always-allowed).
+    -- Proc/flash kinds are excluded — they live in ProcAlerts as floaters.
     local visible = {}
     for _, e in ipairs(TRACKED) do
         local target = e.spell or e.aura
-        local specOK = (not e.spec) or (e.spec == self.activeSpec)
-        if not specOK then
+        local allowed
+        if e.talent then
+            allowed = talentRank(e.talent) > 0
+        elseif e.spec then
+            allowed = (e.spec == self.activeSpec)
+        else
+            allowed = true
+        end
+        if not allowed then
             -- skip
         elseif e.kind == "proc" or e.kind == "flash" then
-            table.insert(visible, e)
+            -- skip — handled by ProcAlerts
         elseif spellKnown(target) then
             table.insert(visible, e)
         end

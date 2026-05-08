@@ -303,11 +303,20 @@ function PA:Init()
     self.editMode = cfg().editMode and true or false
 
     local activeSpec = WT.GetActiveSpec and WT.GetActiveSpec() or nil
+    local talentRank = WT.TalentRank or function() return 0 end
     local visibleIndex = 0
     for _, e in ipairs(WT.TRACKED or {}) do
         if e.kind == "proc" or e.kind == "flash" then
-            local specOK = (not e.spec) or (e.spec == activeSpec)
-            if specOK then
+            -- Filter precedence: talent (per-ability) > spec > always-allowed
+            local allowed
+            if e.talent then
+                allowed = talentRank(e.talent) > 0
+            elseif e.spec then
+                allowed = (e.spec == activeSpec)
+            else
+                allowed = true
+            end
+            if allowed then
                 visibleIndex = visibleIndex + 1
                 self.entries[#self.entries + 1] = e
                 self.floaters[e.short] = buildFloater(e, visibleIndex)
@@ -374,5 +383,60 @@ function PA:ResetPositions()
     end
     self:Refresh()
 end
+
+-- Tear down + rebuild floaters. Used after a respec or talent reset so
+-- the visible set re-filters by current talents.
+function PA:Rebuild()
+    if InCombatLockdown() then
+        self._rebuildPending = true
+        return
+    end
+    -- Destroy current floaters
+    for _, f in pairs(self.floaters) do
+        if f._missPulse then f._missPulse:Stop() end
+        f:Hide()
+        f:ClearAllPoints()
+        f:SetParent(nil)
+    end
+    self.floaters = {}
+    self.entries  = {}
+
+    -- Re-run filter + recreate floaters
+    local activeSpec = WT.GetActiveSpec and WT.GetActiveSpec() or nil
+    local talentRank = WT.TalentRank or function() return 0 end
+    local visibleIndex = 0
+    for _, e in ipairs(WT.TRACKED or {}) do
+        if e.kind == "proc" or e.kind == "flash" then
+            local allowed
+            if e.talent then
+                allowed = talentRank(e.talent) > 0
+            elseif e.spec then
+                allowed = (e.spec == activeSpec)
+            else
+                allowed = true
+            end
+            if allowed then
+                visibleIndex = visibleIndex + 1
+                self.entries[#self.entries + 1] = e
+                self.floaters[e.short] = buildFloater(e, visibleIndex)
+            end
+        end
+    end
+    self:Refresh()
+end
+
+-- PLAYER_TALENT_UPDATE rebuild
+local talentFrame = CreateFrame("Frame")
+talentFrame:RegisterEvent("PLAYER_TALENT_UPDATE")
+talentFrame:RegisterEvent("CHARACTER_POINTS_CHANGED")
+talentFrame:SetScript("OnEvent", function() PA:Rebuild() end)
+
+-- Out-of-combat hook: flush queued rebuild
+WT:On("COMBAT_END", function()
+    if PA._rebuildPending then
+        PA._rebuildPending = false
+        PA:Rebuild()
+    end
+end)
 
 WT:On("LOGIN", function() PA:Init() end)
