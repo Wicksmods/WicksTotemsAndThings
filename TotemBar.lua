@@ -368,7 +368,15 @@ local function buildHost()
     AddBorder(host)
     AddCornerAccents(host, 6, 2)
 
+    host:SetScale(cfg.scale or 1.0)
     return host
+end
+
+function TB:SetScale(s)
+    if not self.host then return end
+    s = math.max(0.5, math.min(2.5, tonumber(s) or 1.0))
+    WicksTotemsDB.bar.scale = s
+    self.host:SetScale(s)
 end
 
 -- ============================================================

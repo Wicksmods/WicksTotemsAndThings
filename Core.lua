@@ -14,6 +14,12 @@ WicksTotemsDB = WicksTotemsDB or {
 WicksTotemsDB.bar     = WicksTotemsDB.bar     or { point = "CENTER", x = 0, y = -180, hidden = false, locked = false }
 WicksTotemsDB.range   = WicksTotemsDB.range   or { enabled = true, sound = true, banner = true, vignette = true }
 WicksTotemsDB.overlay = WicksTotemsDB.overlay or { enabled = true }
+WicksTotemsDB.cd      = WicksTotemsDB.cd      or {}
+WicksTotemsDB.swing   = WicksTotemsDB.swing   or {}
+-- Per-bar scale (1.0 = 100%, range 0.6 to 1.8)
+WicksTotemsDB.bar.scale   = WicksTotemsDB.bar.scale   or 1.0
+WicksTotemsDB.cd.scale    = WicksTotemsDB.cd.scale    or 1.0
+WicksTotemsDB.swing.scale = WicksTotemsDB.swing.scale or 1.0
 
 -- Presets are named bundles of up to 4 totems (one per element).
 -- Empty defaults; UI seeds two starter presets on first open if list is empty.

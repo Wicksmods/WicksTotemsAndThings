@@ -250,7 +250,16 @@ local function buildHost(visibleEntries)
     AddBorder(host)
     AddCornerAccents(host)
 
+    host:SetScale(cfg.scale or 1.0)
     return host, cfg
+end
+
+function CT:SetScale(s)
+    if not self.host then return end
+    s = math.max(0.5, math.min(2.5, tonumber(s) or 1.0))
+    WicksTotemsDB.cd = WicksTotemsDB.cd or {}
+    WicksTotemsDB.cd.scale = s
+    self.host:SetScale(s)
 end
 
 local function buildIcon(host, entry, index)

@@ -122,7 +122,16 @@ local function buildHost()
     SW.mhBar = buildBar(host, C_GREEN, "MH", -PADDING)
     SW.ohBar = buildBar(host, C_OH_BLUE, "OH", -PADDING - BAR_H - BAR_GAP)
 
+    host:SetScale(cfg.scale or 1.0)
     return host, cfg
+end
+
+function SW:SetScale(s)
+    if not self.host then return end
+    s = math.max(0.5, math.min(2.5, tonumber(s) or 1.0))
+    WicksTotemsDB.swing = WicksTotemsDB.swing or {}
+    WicksTotemsDB.swing.scale = s
+    self.host:SetScale(s)
 end
 
 -- ============================================================
