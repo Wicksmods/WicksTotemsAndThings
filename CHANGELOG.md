@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.3.7 - 2026-05-07
+
+Critical fix: ProcAlerts crash from `UnitBuff` signature mismatch.
+
+- `findAura` was reading `count` from position 4 of the `UnitBuff`/`UnitDebuff` return tuple, but TBC 2.5.5 dropped the legacy `rank` slot — `count` lives at position 3 now. With the old indexing, `count` was actually the `debuffType` string ("Magic", "Curse", "" etc.), which made the proc-floater refresh throw `attempt to compare number with string` at `if count > 1 then` and spam BugSack thousands of times per session.
+- Fixed the signature in `CooldownTracker.lua`'s shared `findAura` helper. Added `tonumber()` defensive wraps on the return values so a future signature change can't silently break the comparison again.
+- Stack-count text on proc floaters (Flurry, Maelstrom, Lightning Shield charge counts, etc.) now displays correctly again.
+
 ## v0.3.6 - 2026-05-07
 
 - **Duplicate floater fix.** ProcAlerts now keeps a frame pool keyed by entry short. Init and Rebuild both reuse the existing floater for each entry instead of creating a new one (which left stale orphans visible). Floaters that drop out of the visible set after a respec are hidden via the pool, never re-created.
