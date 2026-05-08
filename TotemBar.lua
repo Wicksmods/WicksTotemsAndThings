@@ -12,7 +12,15 @@ local WT = WicksTotems
 WT.TotemBar = {}
 local TB = WT.TotemBar
 
-local ELEMENT_ORDER = { "fire", "earth", "water", "air" }
+-- ELEMENT_ORDER is now driven by saved-vars via WT.GetElementOrder().
+-- Call elements() at every iteration so drop-order edits propagate live.
+-- Default kept inline as a safety fallback for the brief window between
+-- Core.lua loading and saved-vars hydration.
+local function elements()
+    if WT.GetElementOrder then return WT.GetElementOrder() end
+    return { "fire", "earth", "water", "air" }
+end
+local ELEMENT_ORDER = { "fire", "earth", "water", "air" }   -- legacy fallback
 local ELEMENT_TINT = {
     fire  = { 0.95, 0.55, 0.30 },
     earth = { 0.55, 0.75, 0.45 },
@@ -103,7 +111,7 @@ local function buildPresetMacro(preset)
     -- reset=15 (seconds) so the sequence rewinds if the rotation is paused.
     if not preset or not preset.totems then return "" end
     local names = {}
-    for _, el in ipairs(ELEMENT_ORDER) do
+    for _, el in ipairs(elements()) do
         local n = preset.totems[el]
         if n and n ~= "" then table.insert(names, n) end
     end
@@ -194,7 +202,7 @@ function TB:Status()
         local m = self.dropAll:GetAttribute("macrotext1") or self.dropAll:GetAttribute("macrotext") or ""
         print("  drop-all macrotext1: " .. (m:gsub("\n", " | ")))
     end
-    for _, el in ipairs(ELEMENT_ORDER) do
+    for _, el in ipairs(elements()) do
         local btn = self["btn_" .. el]
         if btn then
             local m = btn:GetAttribute("macrotext1") or btn:GetAttribute("macrotext") or ""
@@ -388,7 +396,7 @@ local pendingRebuild = false
 function TB:RefreshIcons()
     local preset = WT:GetActivePreset()
     local active = WT.AffectedCount and WT.AffectedCount.active or {}
-    for _, el in ipairs(ELEMENT_ORDER) do
+    for _, el in ipairs(elements()) do
         local btn = self["btn_" .. el]
         if btn and btn._icon then
             local twist = WicksTotemsCharDB.twist and WicksTotemsCharDB.twist[el]
@@ -455,7 +463,7 @@ function TB:RefreshActive()
         if oorBySlot[slot] then oorByElement[info.element] = true end
     end
 
-    for _, el in ipairs(ELEMENT_ORDER) do
+    for _, el in ipairs(elements()) do
         local btn = self["btn_" .. el]
         if btn and btn._glow then
             local info = infoByElement[el]
@@ -541,7 +549,7 @@ function TB:Rebuild()
         self.dropAll:SetAttribute("macrotext",  buildPresetMacro(preset))
         self.dropAll:SetAttribute("macrotext1", buildPresetMacro(preset))
     end
-    for _, el in ipairs(ELEMENT_ORDER) do
+    for _, el in ipairs(elements()) do
         local btn = self["btn_" .. el]
         if btn then
             local m = buildElementMacro(preset, el)
@@ -639,8 +647,126 @@ local function buildAnkhBox(barHost)
     return box
 end
 
+-- ============================================================
+-- Weapon imbue boxes — MH + OH on the right side of the bar.
+-- TBC weapon imbues (Windfury / Rockbiter / Flametongue / Frostbrand)
+-- show as weapon enchants, not player auras. We tooltip-scan the
+-- equipped weapon to detect the imbue name and pick an icon.
+-- ============================================================
+
+-- Hidden tooltip for scanning weapon enchant lines
+local imbueScan = CreateFrame("GameTooltip", "WicksTotemsImbueScan", UIParent, "GameTooltipTemplate")
+imbueScan:SetOwner(UIParent, "ANCHOR_NONE")
+
+local IMBUE_KEYWORDS = {
+    { match = "Windfury",    name = "Windfury",    icon = "Interface\\Icons\\Spell_Nature_Cyclone"      },
+    { match = "Rockbiter",   name = "Rockbiter",   icon = "Interface\\Icons\\Spell_Nature_RockBiter"    },
+    { match = "Flametongue", name = "Flametongue", icon = "Interface\\Icons\\Spell_Fire_FlameTongue"   },
+    { match = "Frostbrand",  name = "Frostbrand",  icon = "Interface\\Icons\\Spell_Frost_FrostBrand"   },
+    { match = "Earthliving", name = "Earthliving", icon = "Interface\\Icons\\Spell_Nature_GiftOfTheWaterspirit" },
+}
+
+-- Returns (name, icon) for the imbue on the given inventory slot, or nil.
+-- slot: 16 = main hand, 17 = off hand. Reads tooltip lines and looks for
+-- known imbue keywords.
+local function detectImbue(slot)
+    if not GetInventoryItemLink("player", slot) then return nil end
+    imbueScan:ClearLines()
+    imbueScan:SetInventoryItem("player", slot)
+    for i = 1, imbueScan:NumLines() do
+        local line = _G["WicksTotemsImbueScanTextLeft" .. i]
+        local text = line and line:GetText() or nil
+        if text then
+            for _, k in ipairs(IMBUE_KEYWORDS) do
+                if text:find(k.match) then
+                    return k.name, k.icon
+                end
+            end
+        end
+    end
+    return nil
+end
+
+local function buildImbueBox(barHost, label, anchorPoint)
+    local size = math.floor(ICON_SIZE / 2) + 4   -- match ankh size
+    local box = CreateFrame("Frame", "WicksTotemsImbueBox_" .. label, barHost)
+    box:SetSize(size, size)
+    -- Anchor target defaults to barHost; can be overridden via anchorPoint.relTo
+    -- (e.g. OH anchors to MH so they stack vertically).
+    local relFrame = anchorPoint.relTo or barHost
+    box:SetPoint(anchorPoint.point, relFrame, anchorPoint.relPoint, anchorPoint.x, anchorPoint.y)
+
+    -- Brand chrome (mirrors ankh box)
+    NewTexture(box, "BACKGROUND", C_BG):SetAllPoints(box)
+    local function edge(p1, p2, w, h)
+        local t = box:CreateTexture(nil, "OVERLAY")
+        t:SetColorTexture(0, 0, 0, 0.85)
+        t:SetPoint(p1); t:SetPoint(p2)
+        if w then t:SetWidth(w) end
+        if h then t:SetHeight(h) end
+    end
+    edge("TOPLEFT", "TOPRIGHT", nil, 1)
+    edge("BOTTOMLEFT", "BOTTOMRIGHT", nil, 1)
+    edge("TOPLEFT", "BOTTOMLEFT", 1, nil)
+    edge("TOPRIGHT", "BOTTOMRIGHT", 1, nil)
+
+    local icon = box:CreateTexture(nil, "ARTWORK")
+    icon:SetPoint("TOPLEFT", 1, -1)
+    icon:SetPoint("BOTTOMRIGHT", -1, 1)
+    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    box._icon = icon
+
+    -- MH/OH label in the top-left corner
+    local lbl = box:CreateFontString(nil, "OVERLAY")
+    lbl:SetFont("Fonts\\FRIZQT__.TTF", 8, "OUTLINE")
+    lbl:SetPoint("TOPLEFT", 1, -1)
+    lbl:SetTextColor(C_TEXT_NORMAL[1], C_TEXT_NORMAL[2], C_TEXT_NORMAL[3], 1)
+    lbl:SetText(label)
+
+    box:EnableMouse(true)
+    box:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:ClearLines()
+        GameTooltip:AddLine(label .. " imbue", C_TEXT_NORMAL[1], C_TEXT_NORMAL[2], C_TEXT_NORMAL[3])
+        local name = self._currentImbue
+        if name then
+            GameTooltip:AddLine(name .. " Weapon", C_GREEN[1], C_GREEN[2], C_GREEN[3])
+        else
+            GameTooltip:AddLine("(no imbue)", C_TEXT_DIM[1], C_TEXT_DIM[2], C_TEXT_DIM[3])
+        end
+        GameTooltip:Show()
+    end)
+    box:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+    return box
+end
+
+-- Refresh both imbue boxes by re-scanning slot 16 (MH) and 17 (OH).
+function TB:RefreshImbues()
+    if not self.imbueMH or not self.imbueOH then return end
+    local function applyTo(box, slot)
+        local name, icon = detectImbue(slot)
+        box._currentImbue = name
+        if icon then
+            box._icon:SetTexture(icon)
+            box._icon:SetVertexColor(1, 1, 1)
+        else
+            box._icon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+            box._icon:SetVertexColor(0.4, 0.4, 0.4)
+        end
+    end
+    applyTo(self.imbueMH, 16)
+    applyTo(self.imbueOH, 17)
+    -- Hide OH box when not dual-wielding (no off-hand weapon equipped)
+    if GetInventoryItemLink("player", 17) then
+        self.imbueOH:Show()
+    else
+        self.imbueOH:Hide()
+    end
+end
+
 function TB:RefreshBindLabels()
-    for _, el in ipairs(ELEMENT_ORDER) do
+    for _, el in ipairs(elements()) do
         local btn = self["btn_" .. el]
         if btn and btn._bindLbl then
             local key = GetBindingKey("CLICK WicksTotemsBar_" .. el:upper() .. ":LeftButton")
@@ -662,7 +788,7 @@ function TB:Init()
     self.dropAll = makeSecureButton("WicksTotemsBar_DropAll", host, false)
 
     -- Per-element: visible icon buttons, click + keybind
-    for i, el in ipairs(ELEMENT_ORDER) do
+    for i, el in ipairs(elements()) do
         local b = makeSecureButton("WicksTotemsBar_" .. el:upper(), host, true)
         b:SetPoint("TOPLEFT", host, "TOPLEFT",
             PADDING + (i - 1) * (ICON_SIZE + ICON_GAP),
@@ -672,6 +798,25 @@ function TB:Init()
     end
 
     self.ankhBox = buildAnkhBox(host)
+
+    -- Weapon imbue boxes on the right side of the bar (opposite the ankh).
+    -- Stacked vertically: MH on top, OH below.
+    self.imbueMH = buildImbueBox(host, "MH",
+        { point = "TOPLEFT", relPoint = "TOPRIGHT", x = 3, y = 0 })
+    self.imbueOH = buildImbueBox(host, "OH",
+        { point = "TOPLEFT", relPoint = "BOTTOMLEFT", x = 0, y = -2,
+          relTo = self.imbueMH })
+
+    -- Refresh imbue display on equipment swap / load
+    local imbueWatcher = CreateFrame("Frame")
+    imbueWatcher:RegisterEvent("UNIT_INVENTORY_CHANGED")
+    imbueWatcher:RegisterEvent("PLAYER_ENTERING_WORLD")
+    imbueWatcher:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
+    imbueWatcher:SetScript("OnEvent", function(_, event, unit)
+        if event == "UNIT_INVENTORY_CHANGED" and unit ~= "player" then return end
+        TB:RefreshImbues()
+    end)
+    TB:RefreshImbues()
 
     self:Rebuild()
     self:RefreshBindLabels()
@@ -689,7 +834,9 @@ function TB:Init()
     end
 
     WT:On("COMBAT_END",      function() if pendingRebuild then TB:Rebuild() end end)
-    WT:On("PRESET_CHANGED",  function() TB:Rebuild() end)
+    -- PRESET_CHANGED can imply a different per-preset elementOrder, so
+    -- relayout (which itself calls Rebuild) instead of just rebuilding macros.
+    WT:On("PRESET_CHANGED",  function() TB:RelayoutForOrder() end)
     -- Refresh icons too on every totem change so the twist icon flips
     -- to show the next-to-cast totem after each press.
     WT:On("AFFECTED_UPDATED", function() TB:RefreshIcons(); TB:RefreshActive() end)
@@ -724,7 +871,7 @@ function TB:Status()
     local preset, idx = WT:GetActivePreset()
     if preset then
         print(("  active preset: [%d] %s"):format(idx, preset.name or "?"))
-        for _, el in ipairs(ELEMENT_ORDER) do
+        for _, el in ipairs(elements()) do
             local n = preset.totems and preset.totems[el]
             print(("    %s: %s"):format(el, n or "(empty)"))
         end
@@ -737,6 +884,32 @@ function TB:Status()
     end
     print(("  in combat: %s  pending rebuild: %s"):format(tag(InCombatLockdown()), tag(pendingRebuild)))
 end
+
+-- Re-anchor element icons after WicksTotemsDB.elementOrder changes.
+-- Secure-frame anchor edits are combat-locked; defer if in combat.
+function TB:RelayoutForOrder()
+    if not self.host then return end
+    if InCombatLockdown() then
+        self._relayoutPending = true
+        return
+    end
+    self._relayoutPending = false
+    for i, el in ipairs(elements()) do
+        local btn = self["btn_" .. el]
+        if btn then
+            btn:ClearAllPoints()
+            btn:SetPoint("TOPLEFT", self.host, "TOPLEFT",
+                PADDING + (i - 1) * (ICON_SIZE + ICON_GAP),
+                -PADDING)
+        end
+    end
+    self:Rebuild()  -- rebuilds macros so /castsequence drops in the new order
+end
+
+WT:On("ELEMENT_ORDER_CHANGED", function() TB:RelayoutForOrder() end)
+WT:On("COMBAT_END", function()
+    if TB._relayoutPending then TB:RelayoutForOrder() end
+end)
 
 function TB:Show()
     if not self.host then return end

@@ -78,6 +78,9 @@ local function cfg()
     WicksTotemsDB.procs.perProc     = WicksTotemsDB.procs.perProc     or {}
     WicksTotemsDB.procs.scale       = WicksTotemsDB.procs.scale       or 1.0
     WicksTotemsDB.procs.shieldScale = WicksTotemsDB.procs.shieldScale or 1.0
+    if WicksTotemsDB.procs.shieldsEnabled == nil then
+        WicksTotemsDB.procs.shieldsEnabled = true
+    end
     return WicksTotemsDB.procs
 end
 
@@ -318,17 +321,24 @@ function PA:Init()
 
     local activeSpec = WT.GetActiveSpec and WT.GetActiveSpec() or nil
     local talentRank = WT.TalentRank or function() return 0 end
+    local spellKnown = WT.TrackerSpellKnown or function() return true end
     local visibleIndex = 0
     for _, e in ipairs(WT.TRACKED or {}) do
         if e.kind == "proc" or e.kind == "flash" then
-            -- Filter precedence: talent (per-ability) > spec > always-allowed
+            -- Filter precedence: talent > spec > spell (ability-based)
+            -- > always-allowed. Plus the global shields toggle for category=shield.
             local allowed
             if e.talent then
                 allowed = talentRank(e.talent) > 0
             elseif e.spec then
                 allowed = (e.spec == activeSpec)
+            elseif e.spell then
+                allowed = spellKnown(e.spell)
             else
                 allowed = true
+            end
+            if allowed and e.category == "shield" and cfg().shieldsEnabled == false then
+                allowed = false
             end
             if allowed then
                 visibleIndex = visibleIndex + 1
@@ -384,6 +394,13 @@ function PA:SetEditMode(on)
     self.editMode = on and true or false
     cfg().editMode = self.editMode
     self:Refresh()
+end
+
+-- Toggle the entire shield-category set on/off. When disabled, shield
+-- floaters are filtered out at Rebuild time and pool-hidden.
+function PA:SetShieldsEnabled(on)
+    cfg().shieldsEnabled = on and true or false
+    self:Rebuild()
 end
 
 -- Per-category global scale. category="shield" writes shieldScale and only
@@ -446,6 +463,7 @@ function PA:Rebuild()
 
     local activeSpec = WT.GetActiveSpec and WT.GetActiveSpec() or nil
     local talentRank = WT.TalentRank or function() return 0 end
+    local spellKnown = WT.TrackerSpellKnown or function() return true end
     local visibleIndex = 0
     for _, e in ipairs(WT.TRACKED or {}) do
         if e.kind == "proc" or e.kind == "flash" then
@@ -454,8 +472,13 @@ function PA:Rebuild()
                 allowed = talentRank(e.talent) > 0
             elseif e.spec then
                 allowed = (e.spec == activeSpec)
+            elseif e.spell then
+                allowed = spellKnown(e.spell)
             else
                 allowed = true
+            end
+            if allowed and e.category == "shield" and cfg().shieldsEnabled == false then
+                allowed = false
             end
             if allowed then
                 visibleIndex = visibleIndex + 1

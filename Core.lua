@@ -12,6 +12,9 @@ WicksTotemsDB = WicksTotemsDB or {
     overlay = { enabled = true },
 }
 WicksTotemsDB.bar     = WicksTotemsDB.bar     or { point = "CENTER", x = 0, y = -180, hidden = false, locked = false }
+-- Element drop order is now per-preset (lives in WicksTotemsCharDB.presets[i].elementOrder).
+-- Account-wide WicksTotemsDB.elementOrder is no longer authoritative; left
+-- here as a fallback when no preset is active.
 WicksTotemsDB.range   = WicksTotemsDB.range   or { enabled = true, sound = true, banner = true, vignette = true }
 WicksTotemsDB.overlay = WicksTotemsDB.overlay or { enabled = true }
 WicksTotemsDB.cd      = WicksTotemsDB.cd      or {}
@@ -40,6 +43,44 @@ ns.WT = WT
 
 WT.ADDON = ADDON
 WT.ELEMENTS = { "earth", "fire", "water", "air" }
+
+-- Element drop order is per-preset, stored on the preset itself as
+-- preset.elementOrder. Falls back to the canonical default when no
+-- active preset is set yet.
+local DEFAULT_ELEMENT_ORDER = { "fire", "earth", "water", "air" }
+
+local function isValidOrder(o)
+    if type(o) ~= "table" or #o ~= 4 then return false end
+    local seen = {}
+    for _, name in ipairs(o) do seen[name] = (seen[name] or 0) + 1 end
+    return seen.fire == 1 and seen.earth == 1 and seen.water == 1 and seen.air == 1
+end
+
+function WT.GetElementOrder()
+    local preset = WT.GetActivePreset and WT:GetActivePreset() or nil
+    if preset and isValidOrder(preset.elementOrder) then
+        return preset.elementOrder
+    end
+    return DEFAULT_ELEMENT_ORDER
+end
+
+-- Validate + persist a new order on the ACTIVE preset. Emits both
+-- ELEMENT_ORDER_CHANGED and PRESET_CHANGED so the TotemBar re-anchors
+-- and rebuilds its macros.
+function WT.SetElementOrder(t)
+    if type(t) ~= "table" or #t ~= 4 then return false, "need exactly 4 elements" end
+    if not isValidOrder(t) then
+        return false, "must contain fire, earth, water, air exactly once"
+    end
+    local preset = WT.GetActivePreset and WT:GetActivePreset() or nil
+    if not preset then return false, "no active preset" end
+    preset.elementOrder = { t[1], t[2], t[3], t[4] }
+    if WT.Emit then
+        WT:Emit("ELEMENT_ORDER_CHANGED")
+        WT:Emit("PRESET_CHANGED")
+    end
+    return true
+end
 
 local _, playerClass = UnitClass("player")
 WT.playerClass = playerClass
@@ -143,6 +184,7 @@ SlashCmdList.WICKSTOTEMS = function(input)
         print("  /wtt swing        toggle swing timer bar")
         print("  /wtt resetswing   reset swing timer position")
         print("  /wtt twist <el> on|off   enable totem twisting for an element")
+        print("  /wtt order <e1> <e2> <e3> <e4>  set totem element drop order")
         return
     end
     if input == "reset" then
@@ -208,6 +250,28 @@ SlashCmdList.WICKSTOTEMS = function(input)
     if input == "cdrebuild" then
         if WT.CooldownTracker and WT.CooldownTracker.ForceReinit then
             WT.CooldownTracker:ForceReinit()
+        end
+        return
+    end
+    -- /wtt order fire earth water air  (or any permutation)
+    -- /wtt order             prints current order
+    local orderArgs = input:match("^order%s*(.*)$")
+    if orderArgs then
+        if orderArgs == "" then
+            local o = WT.GetElementOrder()
+            print("|cff4FC778Wick's Totems|r element order: " .. table.concat(o, ", "))
+            print("  set with: /wtt order <e1> <e2> <e3> <e4>")
+            return
+        end
+        local list = {}
+        for word in orderArgs:gmatch("%S+") do
+            table.insert(list, word:lower())
+        end
+        local ok, err = WT.SetElementOrder(list)
+        if ok then
+            print("|cff4FC778Wick's Totems|r element order set to: " .. table.concat(list, ", "))
+        else
+            print("|cff4FC778Wick's Totems|r: " .. (err or "invalid"))
         end
         return
     end

@@ -19,7 +19,7 @@ local C_TEXT_NORMAL = { 0.831, 0.784, 0.631, 1 }
 local C_ROW_HOVER   = { 0.310, 0.780, 0.471, 0.06 }
 
 local PANEL_W = 520
-local PANEL_H = 500   -- v0.3.4 bumped from 420 — Options content was overflowing
+local PANEL_H = 520   -- v0.3.4 bumped 420→500, this round 500→520 — added "Show shields" row in Proc Floaters
 local TITLE_H = 28
 local TAB_H   = 24
 local PADDING = 10
@@ -406,10 +406,68 @@ local function buildPresetsPane(parent)
         UI:RefreshPresets()
     end)
 
+    -- "Drop order" strip: shows the active preset's element drop order.
+    -- Click any button to shift that element one slot to the left.
+    -- This row sits between the hint and the preset list.
+    local orderRow = CreateFrame("Frame", nil, pane)
+    orderRow:SetPoint("TOPLEFT",  PADDING,        -PADDING - 24)
+    orderRow:SetPoint("TOPRIGHT", -PADDING,       -PADDING - 24)
+    orderRow:SetHeight(22)
+
+    local orderLbl = NewText(orderRow, 10, C_TEXT_DIM)
+    orderLbl:SetPoint("LEFT", 0, 0)
+    orderLbl:SetText("Drop order (active preset):")
+
+    UI._orderButtons = {}
+    for slot = 1, 4 do
+        local b = CreateFrame("Button", nil, orderRow)
+        b:SetSize(54, 18)
+        NewTexture(b, "BACKGROUND", C_HEADER_BG):SetAllPoints(b)
+        AddBorder(b)
+        local lbl = NewText(b, 10, C_TEXT_NORMAL)
+        lbl:SetPoint("CENTER")
+        b._lbl = lbl
+        b:SetScript("OnEnter", function() lbl:SetTextColor(C_GREEN[1], C_GREEN[2], C_GREEN[3]) end)
+        b:SetScript("OnLeave", function() lbl:SetTextColor(C_TEXT_NORMAL[1], C_TEXT_NORMAL[2], C_TEXT_NORMAL[3]) end)
+        b:SetScript("OnClick", function()
+            -- Shift this slot's element one position left (no-op for slot 1)
+            if slot == 1 then return end
+            local cur = WT.GetElementOrder()
+            local copy = { cur[1], cur[2], cur[3], cur[4] }
+            copy[slot - 1], copy[slot] = copy[slot], copy[slot - 1]
+            WT.SetElementOrder(copy)
+            UI:RefreshOrderRow()
+        end)
+        UI._orderButtons[slot] = b
+    end
+
+    UI:RefreshOrderRow()
+
     UI._presetRowHost = CreateFrame("Frame", nil, pane)
-    UI._presetRowHost:SetPoint("TOPLEFT", PADDING, -PADDING - 26)
-    UI._presetRowHost:SetPoint("TOPRIGHT", -PADDING, -PADDING - 26)
+    UI._presetRowHost:SetPoint("TOPLEFT", PADDING, -PADDING - 50)
+    UI._presetRowHost:SetPoint("TOPRIGHT", -PADDING, -PADDING - 50)
     UI._presetRowHost:SetHeight(1)
+end
+
+-- Repaints the four element-order buttons to match the active preset's
+-- current order. Called when the strip is built, the active preset
+-- changes, or the user clicks one of the buttons.
+function UI:RefreshOrderRow()
+    if not self._orderButtons then return end
+    local order = WT.GetElementOrder()
+    local capitalize = { fire = "Fire", earth = "Earth", water = "Water", air = "Air" }
+    local prevAnchor = nil
+    for slot, b in ipairs(self._orderButtons) do
+        local el = order[slot] or "?"
+        b._lbl:SetText(capitalize[el] or el)
+        b:ClearAllPoints()
+        if slot == 1 then
+            b:SetPoint("LEFT", 150, 0)
+        else
+            b:SetPoint("LEFT", prevAnchor, "RIGHT", 4, 0)
+        end
+        prevAnchor = b
+    end
 end
 
 local function buildElementPill(row, element, i, total, presetIndex, totemName)
@@ -930,6 +988,22 @@ local function buildOptionsPane(parent)
     resetProcsBtn:SetPoint("TOPLEFT", PADDING + 270, y - 1)
     y = y - rowH
 
+    -- Shields enable/disable toggle (hides Lightning / Water / Earth Shield floaters)
+    cb = makeCheckbox(pane, "Show shields",
+        function()
+            WicksTotemsDB.procs = WicksTotemsDB.procs or {}
+            local v = WicksTotemsDB.procs.shieldsEnabled
+            if v == nil then return true end
+            return v
+        end,
+        function(v)
+            if WT.ProcAlerts and WT.ProcAlerts.SetShieldsEnabled then
+                WT.ProcAlerts:SetShieldsEnabled(v)
+            end
+        end)
+    cb:SetPoint("TOPLEFT", PADDING + 4, y)
+    y = y - rowH
+
     -- Procs size slider (applies to non-shield proc floaters)
     local procsLbl = NewText(pane, 10, C_TEXT_DIM)
     procsLbl:SetPoint("TOPLEFT", PADDING + 4, y - 3)
@@ -1077,6 +1151,10 @@ function UI:Build()
     WT:On("PRESET_CHANGED", function()
         refreshActivePane()
         refreshPresetsPane()
+        if UI.RefreshOrderRow then UI:RefreshOrderRow() end
+    end)
+    WT:On("ELEMENT_ORDER_CHANGED", function()
+        if UI.RefreshOrderRow then UI:RefreshOrderRow() end
     end)
 end
 
