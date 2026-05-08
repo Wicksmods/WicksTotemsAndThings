@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.3.4 - 2026-05-07
+
+- Main panel height bumped from 420 to 500 so the Options tab content (Proc Floaters + Twist sections) no longer spills out of the chrome.
+- New **Proc Floater size slider** in Options (Proc Floaters section). Range 60% to 180%, scales every proc + shield floater uniformly via `host:SetScale`. Per-entry scale is still saved (multiplicative with global) for future per-floater controls.
+
 ## v0.3.3 - 2026-05-07
 
 Per-talent filtering replaces the cruder spec-tag filter.

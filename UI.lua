@@ -19,7 +19,7 @@ local C_TEXT_NORMAL = { 0.831, 0.784, 0.631, 1 }
 local C_ROW_HOVER   = { 0.310, 0.780, 0.471, 0.06 }
 
 local PANEL_W = 520
-local PANEL_H = 420
+local PANEL_H = 500   -- v0.3.4 bumped from 420 — Options content was overflowing
 local TITLE_H = 28
 local TAB_H   = 24
 local PADDING = 10
@@ -928,6 +928,20 @@ local function buildOptionsPane(parent)
         end
     end)
     resetProcsBtn:SetPoint("TOPLEFT", PADDING + 270, y - 1)
+    y = y - rowH
+
+    -- Floater scale slider — applies to all proc + shield floaters
+    local sizeLbl2 = NewText(pane, 10, C_TEXT_DIM)
+    sizeLbl2:SetPoint("TOPLEFT", PADDING + 4, y - 3)
+    sizeLbl2:SetText("Size")
+    local procSlider = makeSlider(pane,
+        function()
+            WicksTotemsDB.procs = WicksTotemsDB.procs or {}
+            return WicksTotemsDB.procs.scale or 1.0
+        end,
+        function(v) if WT.ProcAlerts and WT.ProcAlerts.SetScale then WT.ProcAlerts:SetScale(v) end end,
+        0.6, 1.8, 0.05)
+    procSlider:SetPoint("TOPLEFT", PADDING + 40, y - 3)
     y = y - rowH - sectionGap
 
     -- ----- Totem Twisting -----

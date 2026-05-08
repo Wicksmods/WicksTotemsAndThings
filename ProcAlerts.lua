@@ -75,6 +75,7 @@ end
 local function cfg()
     WicksTotemsDB.procs = WicksTotemsDB.procs or { editMode = false, perProc = {} }
     WicksTotemsDB.procs.perProc = WicksTotemsDB.procs.perProc or {}
+    WicksTotemsDB.procs.scale   = WicksTotemsDB.procs.scale   or 1.0
     return WicksTotemsDB.procs
 end
 
@@ -113,7 +114,9 @@ local function buildFloater(entry, defaultIndex)
     f:SetClampedToScreen(true)
     f:RegisterForDrag("LeftButton")
     f:SetPoint(pc.point, UIParent, pc.point, pc.x, pc.y)
-    f:SetScale(pc.scale)
+    -- Final scale = global * per-entry. Global default 1.0 from cfg(),
+    -- per-entry default 1.0 from entryConfig().
+    f:SetScale((cfg().scale or 1.0) * (pc.scale or 1.0))
     f:Hide()
 
     f:SetScript("OnDragStart", function(self)
@@ -366,6 +369,19 @@ function PA:SetEditMode(on)
     self.editMode = on and true or false
     cfg().editMode = self.editMode
     self:Refresh()
+end
+
+-- Global proc-floater scale. Applied multiplicatively with each floater's
+-- per-entry scale, so individual size overrides still work later.
+function PA:SetScale(s)
+    s = math.max(0.5, math.min(2.5, tonumber(s) or 1.0))
+    cfg().scale = s
+    for _, f in pairs(self.floaters) do
+        local short = f._entry and f._entry.short
+        local pc = short and cfg().perProc and cfg().perProc[short] or nil
+        local perEntry = (pc and pc.scale) or 1.0
+        f:SetScale(s * perEntry)
+    end
 end
 
 function PA:ResetPositions()
