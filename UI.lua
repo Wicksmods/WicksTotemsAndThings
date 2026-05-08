@@ -584,7 +584,7 @@ local function buildBindingsPane(parent)
 
     -- Static list of the 8 binding entries
     local entries = {
-        { label = "Drop active preset (all 4 totems)", binding = "CLICK WicksTotemsBar_DropAll:LeftButton" },
+        { label = "Drop active preset (all 4 totems in sequence)", binding = "CLICK WicksTotemsBar_DropAll:LeftButton" },
         { label = "Cast Fire totem",                   binding = "CLICK WicksTotemsBar_FIRE:LeftButton" },
         { label = "Cast Earth totem",                  binding = "CLICK WicksTotemsBar_EARTH:LeftButton" },
         { label = "Cast Water totem",                  binding = "CLICK WicksTotemsBar_WATER:LeftButton" },

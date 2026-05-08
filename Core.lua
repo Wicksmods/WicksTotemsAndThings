@@ -105,7 +105,7 @@ end)
 -- ============================================================
 BINDING_HEADER_WICKSTOTEMS = "Wick's Totems and Things"
 
-_G["BINDING_NAME_CLICK WicksTotemsBar_DropAll:LeftButton"] = "Drop active preset (all 4 totems)"
+_G["BINDING_NAME_CLICK WicksTotemsBar_DropAll:LeftButton"] = "Drop active preset (all 4 totems in sequence)"
 _G["BINDING_NAME_CLICK WicksTotemsBar_FIRE:LeftButton"]    = "Cast Fire totem from active preset"
 _G["BINDING_NAME_CLICK WicksTotemsBar_EARTH:LeftButton"]   = "Cast Earth totem from active preset"
 _G["BINDING_NAME_CLICK WicksTotemsBar_WATER:LeftButton"]   = "Cast Water totem from active preset"

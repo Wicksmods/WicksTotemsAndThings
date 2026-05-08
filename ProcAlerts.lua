@@ -161,6 +161,17 @@ local function buildFloater(entry, defaultIndex)
     stack:SetText("")
     f._stack = stack
 
+    -- "Missing" pulse animation: alpha 0.25 <-> 0.55, looping. Used by
+    -- entries with flashWhenMissing=true (the shields) to remind the
+    -- shaman to refresh a dropped buff.
+    local missPulse = f:CreateAnimationGroup()
+    missPulse:SetLooping("REPEAT")
+    local fadeOut = missPulse:CreateAnimation("Alpha")
+    fadeOut:SetFromAlpha(0.55); fadeOut:SetToAlpha(0.25); fadeOut:SetDuration(0.7); fadeOut:SetOrder(1)
+    local fadeIn  = missPulse:CreateAnimation("Alpha")
+    fadeIn:SetFromAlpha(0.25); fadeIn:SetToAlpha(0.55); fadeIn:SetDuration(0.7); fadeIn:SetOrder(2)
+    f._missPulse = missPulse
+
     -- Tooltip
     f:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
@@ -198,6 +209,21 @@ local function setShine(f, on)
     end
 end
 
+local function stopMissPulse(f)
+    if f._missPulseActive and f._missPulse then
+        f._missPulse:Stop()
+        f._missPulseActive = false
+        f:SetAlpha(1)
+    end
+end
+
+local function startMissPulse(f)
+    if f._missPulseActive then return end
+    if not f._missPulse then return end
+    f._missPulse:Play()
+    f._missPulseActive = true
+end
+
 local function refreshFloater(f)
     local e = f._entry
     if not e then return end
@@ -205,14 +231,13 @@ local function refreshFloater(f)
 
     -- Edit mode: show all floaters dimmed for positioning
     if PA.editMode then
+        stopMissPulse(f)
         f:Show()
         f:SetAlpha(0.55)
         f._stack:SetText(e.short or "")
         setShine(f, false)
         return
     end
-
-    f:SetAlpha(1)
 
     -- Aura state (proc kind)
     local auraName, count, expirationTime
@@ -230,7 +255,10 @@ local function refreshFloater(f)
     end
 
     if auraName or flashing then
+        -- Buff active: full bright + shine + stack/duration
+        stopMissPulse(f)
         f:Show()
+        f:SetAlpha(1)
         setShine(f, true)
         if auraName and count and count > 1 then
             f._stack:SetText(tostring(count))
@@ -242,7 +270,16 @@ local function refreshFloater(f)
         else
             f._stack:SetText("")
         end
+    elseif e.flashWhenMissing then
+        -- Buff missing but the shaman should refresh it: subtle pulse
+        -- between 25% and 55% alpha. No shine, no stack count.
+        setShine(f, false)
+        f._stack:SetText("")
+        f:Show()
+        startMissPulse(f)
     else
+        -- Inactive proc: fully hide
+        stopMissPulse(f)
         setShine(f, false)
         f._stack:SetText("")
         f:Hide()
