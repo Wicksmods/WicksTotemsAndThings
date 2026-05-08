@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.2.6 - 2026-05-07
+
+Coverage gaps from common shaman addons.
+
+- **Shock cooldown tracker** — Earth / Frost / Flame Shock share one timer (6s base). Single icon shows the shared CD.
+- **Sated / Exhaustion debuff tracker** — 10-min Lust lockout. New `auraAlt` field on TRACKED entries handles the dual-name case (Sated on Bloodlust, Exhaustion on Heroism).
+- **Water Shield + Lightning Shield charge trackers** — buff stack count for both shaman shields.
+- **Totem destroyed alert** — when an enemy kills a totem more than 5 seconds before its natural expiration, the OOR banner machinery fires `TOTEM DESTROYED: <Totem Name>` plus a `RAID_WARNING` sound. Totemic Call recalls are filtered out via `UNIT_SPELLCAST_SUCCEEDED` watch.
+
 ## v0.2.5 - 2026-05-07
 
 Resizable bars.

@@ -56,6 +56,29 @@ local TRACKED = {
     { spell = "Reincarnation",         kind = "cd",   short = "Ankh", icon = "Interface\\Icons\\Spell_Shaman_Reincarnation" },
     { spell = "Bloodlust",             kind = "both", aura = "Bloodlust",            short = "Lust", icon = "Interface\\Icons\\Spell_Nature_Bloodlust" },
     { spell = "Heroism",               kind = "both", aura = "Heroism",              short = "Hero", icon = "Interface\\Icons\\Ability_Shaman_Heroism" },
+
+    -- Sated/Exhaustion debuff: 10-min lockout after Lust/Hero. Cast either
+    -- Bloodlust or Heroism leaves a "Sated" or "Exhaustion" debuff. Track
+    -- both names — the icon lights up when either is on the player.
+    { aura = "Sated", auraAlt = "Exhaustion", kind = "proc", short = "Sated",
+      displayName = "Sated / Exhaustion (Lust used)",
+      icon = "Interface\\Icons\\Spell_Nature_Bloodlust" },
+
+    -- Shock cooldown — Earth/Frost/Flame Shock all share one timer (6s base).
+    -- Earth Shock is baseline at level 4 so it's the most-known proxy.
+    { spell = "Earth Shock", kind = "cd", short = "Shock", displayName = "Shock CD",
+      icon = "Interface\\Icons\\Spell_Nature_EarthShock" },
+
+    -- Shield buffs — track stack count. Lightning Shield is a baseline
+    -- offensive shield used by Enhance/Elemental; Water Shield is the
+    -- mana-restore shield used by Resto. Both are Player buffs.
+    { aura = "Lightning Shield", kind = "proc", short = "LSh",
+      displayName = "Lightning Shield charges",
+      icon = "Interface\\Icons\\Spell_Nature_LightningShield" },
+    { aura = "Water Shield",     kind = "proc", short = "WSh",
+      displayName = "Water Shield charges",
+      icon = "Interface\\Icons\\Ability_Shaman_WaterShield" },
+
     { spell = "Fire Elemental Totem",  kind = "cd",   short = "FE",   icon = "Interface\\Icons\\Spell_Fire_Elemental_Totem" },
     { spell = "Earth Elemental Totem", kind = "cd",   short = "EE",   icon = "Interface\\Icons\\Spell_Nature_EarthElemental_Totem" },
 
@@ -378,6 +401,10 @@ function CT:Refresh()
             local auraName, count, expirationTime, duration
             if e.aura then
                 auraName, count, expirationTime, duration = findAura(e.unit or "player", e.aura, e.harmful)
+                -- auraAlt: try alternate name if primary missed (e.g. Sated/Exhaustion)
+                if not auraName and e.auraAlt then
+                    auraName, count, expirationTime, duration = findAura(e.unit or "player", e.auraAlt, e.harmful)
+                end
             end
 
             -- Cooldown check
