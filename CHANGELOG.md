@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.3.6 - 2026-05-07
+
+- **Duplicate floater fix.** ProcAlerts now keeps a frame pool keyed by entry short. Init and Rebuild both reuse the existing floater for each entry instead of creating a new one (which left stale orphans visible). Floaters that drop out of the visible set after a respec are hidden via the pool, never re-created.
+- **Init/Rebuild ordering** — Rebuild now defers to Init if Init hasn't run yet, preventing a race where PLAYER_TALENT_UPDATE fires before LOGIN.
+
 ## v0.3.5 - 2026-05-07
 
 - New `category = "shield"` field on TRACKED entries marks Lightning Shield, Water Shield, and Earth Shield as their own class (always-displayed with the missing-buff pulse), distinct from regular procs.
