@@ -74,9 +74,19 @@ end
 -- ============================================================
 local function cfg()
     WicksTotemsDB.procs = WicksTotemsDB.procs or { editMode = false, perProc = {} }
-    WicksTotemsDB.procs.perProc = WicksTotemsDB.procs.perProc or {}
-    WicksTotemsDB.procs.scale   = WicksTotemsDB.procs.scale   or 1.0
+    WicksTotemsDB.procs.perProc     = WicksTotemsDB.procs.perProc     or {}
+    WicksTotemsDB.procs.scale       = WicksTotemsDB.procs.scale       or 1.0
+    WicksTotemsDB.procs.shieldScale = WicksTotemsDB.procs.shieldScale or 1.0
     return WicksTotemsDB.procs
+end
+
+-- Returns the global scale factor for a given entry's category.
+-- "shield" → cfg.shieldScale, anything else → cfg.scale.
+local function categoryScale(entry)
+    if entry and entry.category == "shield" then
+        return cfg().shieldScale or 1.0
+    end
+    return cfg().scale or 1.0
 end
 
 -- Default position for the i-th visible floater. 4-column grid below
@@ -114,9 +124,9 @@ local function buildFloater(entry, defaultIndex)
     f:SetClampedToScreen(true)
     f:RegisterForDrag("LeftButton")
     f:SetPoint(pc.point, UIParent, pc.point, pc.x, pc.y)
-    -- Final scale = global * per-entry. Global default 1.0 from cfg(),
-    -- per-entry default 1.0 from entryConfig().
-    f:SetScale((cfg().scale or 1.0) * (pc.scale or 1.0))
+    -- Final scale = category-global * per-entry. Shields use cfg.shieldScale,
+    -- procs use cfg.scale. Per-entry adjustment multiplies on top.
+    f:SetScale(categoryScale(entry) * (pc.scale or 1.0))
     f:Hide()
 
     f:SetScript("OnDragStart", function(self)
@@ -371,16 +381,28 @@ function PA:SetEditMode(on)
     self:Refresh()
 end
 
--- Global proc-floater scale. Applied multiplicatively with each floater's
--- per-entry scale, so individual size overrides still work later.
-function PA:SetScale(s)
+-- Per-category global scale. category="shield" writes shieldScale and only
+-- rescales shield floaters; default writes scale and rescales the rest.
+function PA:SetScale(s, category)
     s = math.max(0.5, math.min(2.5, tonumber(s) or 1.0))
-    cfg().scale = s
+    if category == "shield" then
+        cfg().shieldScale = s
+    else
+        cfg().scale = s
+    end
     for _, f in pairs(self.floaters) do
-        local short = f._entry and f._entry.short
-        local pc = short and cfg().perProc and cfg().perProc[short] or nil
-        local perEntry = (pc and pc.scale) or 1.0
-        f:SetScale(s * perEntry)
+        local e = f._entry
+        if e then
+            local fcat = e.category or "proc"
+            -- Only rescale floaters whose category matches what we just changed
+            if (category == "shield" and fcat == "shield")
+               or (category ~= "shield" and fcat ~= "shield") then
+                local short = e.short
+                local pc = short and cfg().perProc and cfg().perProc[short] or nil
+                local perEntry = (pc and pc.scale) or 1.0
+                f:SetScale(categoryScale(e) * perEntry)
+            end
+        end
     end
 end
 
