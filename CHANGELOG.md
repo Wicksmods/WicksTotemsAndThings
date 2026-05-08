@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.3.1 - 2026-05-07
+
+- **Shield missing-buff pulse.** Lightning Shield, Water Shield, and Earth Shield (target) floaters stay visible when the buff is missing, pulsing subtly between 25% and 55% alpha as a refresh reminder. Snap to full brightness + autocast shine the moment the shield goes back up.
+- **Binding label clarified.** "Drop active preset" now reads "Drop active preset (all 4 totems in sequence)" so it's obvious that each press advances `/castsequence` rather than firing all four at once.
+
 ## v0.3.0 - 2026-05-07
 
 Big refactor: procs and flashes split out of the cooldown bar into individual draggable floaters.

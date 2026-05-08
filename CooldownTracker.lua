@@ -76,9 +76,11 @@ TRACKED = {
     -- offensive shield used by Enhance/Elemental; Water Shield is the
     -- mana-restore shield used by Resto. Both are Player buffs.
     { aura = "Lightning Shield", kind = "proc", short = "LSh",
+      flashWhenMissing = true,
       displayName = "Lightning Shield charges",
       icon = "Interface\\Icons\\Spell_Nature_LightningShield" },
     { aura = "Water Shield",     kind = "proc", short = "WSh",
+      flashWhenMissing = true,
       displayName = "Water Shield charges",
       icon = "Interface\\Icons\\Ability_Shaman_WaterShield" },
 
@@ -99,7 +101,8 @@ TRACKED = {
 
     -- Restoration: Earth Shield charges on target (cast on MT, decrements per heal)
     { aura = "Earth Shield",           kind = "proc",  short = "ES", unit = "target", harmful = false,
-      spec = "restoration", displayName = "Earth Shield (target)",
+      spec = "restoration", flashWhenMissing = true,
+      displayName = "Earth Shield (target)",
       icon = "Interface\\Icons\\Spell_Nature_SkinofEarth" },
 
     -- Restoration: Mana Tide Totem buff window
