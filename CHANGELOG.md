@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.2.5 - 2026-05-07
+
+Resizable bars.
+
+- Per-bar **Size slider** in the Options panel for the totem icon strip, cooldown / proc bar, and swing timer. Range 60% to 180%, drag-to-set with live percentage readout.
+- Scale persists per account via `WicksTotemsDB.{bar,cd,swing}.scale`.
+- New `:SetScale(v)` method on each bar module — clamps to [0.5, 2.5] and applies via `host:SetScale`.
+
 ## v0.2.4 - 2026-05-07
 
 Performance pass. No feature changes; addressing reported in-combat lag and stutter, especially in 25-man raids.

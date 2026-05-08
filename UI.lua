@@ -676,6 +676,72 @@ local function makeCheckbox(parent, label, getter, onChange)
     return cb
 end
 
+-- Compact horizontal scale slider (Wick chrome). 120px wide track with a
+-- draggable green thumb + live percentage text. Calls onChange(value) on drag.
+local function makeSlider(parent, getter, onChange, minVal, maxVal, step)
+    minVal = minVal or 0.6
+    maxVal = maxVal or 1.8
+    step   = step   or 0.05
+
+    local frame = CreateFrame("Frame", nil, parent)
+    frame:SetSize(120, 12)
+    frame:EnableMouse(true)
+
+    local track = NewTexture(frame, "BACKGROUND", { 0.10, 0.08, 0.16, 1 })
+    track:SetPoint("LEFT", 0, 0)
+    track:SetPoint("RIGHT", 0, 0)
+    track:SetHeight(2)
+
+    local fill = NewTexture(frame, "BORDER", C_GREEN)
+    fill:SetPoint("LEFT", track, "LEFT", 0, 0)
+    fill:SetHeight(2)
+
+    local thumb = CreateFrame("Button", nil, frame)
+    thumb:SetSize(8, 12)
+    NewTexture(thumb, "ARTWORK", C_GREEN):SetAllPoints(thumb)
+    thumb:RegisterForDrag("LeftButton")
+
+    local valText = NewText(frame, 10, C_TEXT_NORMAL)
+    valText:SetPoint("LEFT", frame, "RIGHT", 8, 0)
+
+    local function snap(v)
+        v = math.max(minVal, math.min(maxVal, v))
+        v = math.floor((v - minVal) / step + 0.5) * step + minVal
+        return tonumber(string.format("%.2f", v))
+    end
+
+    local function applyVisual(v)
+        local frac = (v - minVal) / (maxVal - minVal)
+        local trackW = frame:GetWidth()
+        thumb:ClearAllPoints()
+        thumb:SetPoint("CENTER", frame, "LEFT", frac * trackW, 0)
+        fill:SetPoint("RIGHT", frame, "LEFT", frac * trackW, 0)
+        valText:SetText(string.format("%d%%", math.floor(v * 100 + 0.5)))
+    end
+
+    applyVisual(getter())
+
+    local dragging = false
+    local function onUpdate()
+        if not dragging then return end
+        local mx = GetCursorPosition()
+        local effScale = frame:GetEffectiveScale()
+        local left = frame:GetLeft() * effScale
+        local frac = math.max(0, math.min(1, (mx - left) / (frame:GetWidth() * effScale)))
+        local newV = snap(minVal + frac * (maxVal - minVal))
+        applyVisual(newV)
+        if onChange then onChange(newV) end
+    end
+
+    thumb:SetScript("OnMouseDown", function() dragging = true end)
+    thumb:SetScript("OnMouseUp",   function() dragging = false end)
+    frame:SetScript("OnMouseDown", function() dragging = true; onUpdate() end)
+    frame:SetScript("OnMouseUp",   function() dragging = false end)
+    frame:SetScript("OnUpdate", onUpdate)
+
+    return frame
+end
+
 local function makeSmallButton(parent, label, onClick)
     local b = CreateFrame("Button", nil, parent)
     b:SetSize(80, 18)
@@ -721,8 +787,8 @@ local function buildOptionsPane(parent)
     local sectionGap = 4   -- tight spacing so all sections (incl. twist) fit
     local y = -PADDING
 
-    -- Helper: one-line "Bar" section with Show / Lock / Reset on the same row
-    local function barRow(label, getHidden, setHidden, getLocked, setLocked, onReset)
+    -- Helper: one-line "Bar" section with Show / Lock / Reset + a Size slider
+    local function barRow(label, getHidden, setHidden, getLocked, setLocked, onReset, getScale, setScale)
         makeSectionHeader(pane, label, y); y = y - 22
         local show = makeCheckbox(pane, "Show",
             function() return not getHidden() end,
@@ -737,6 +803,14 @@ local function buildOptionsPane(parent)
         local rst = makeSmallButton(pane, "Reset position", onReset)
         rst:SetPoint("TOPLEFT", PADDING + 170, y - 1)
 
+        if getScale and setScale then
+            local sizeLbl = NewText(pane, 10, C_TEXT_DIM)
+            sizeLbl:SetPoint("TOPLEFT", PADDING + 270, y - 3)
+            sizeLbl:SetText("Size")
+            local slider = makeSlider(pane, getScale, setScale, 0.6, 1.8, 0.05)
+            slider:SetPoint("TOPLEFT", PADDING + 300, y - 3)
+        end
+
         y = y - rowH - sectionGap
     end
 
@@ -748,7 +822,9 @@ local function buildOptionsPane(parent)
         end,
         function() return WicksTotemsDB.bar.locked end,
         function(v) WicksTotemsDB.bar.locked = v end,
-        function() if WT.TotemBar and WT.TotemBar.ResetPosition then WT.TotemBar:ResetPosition() end end)
+        function() if WT.TotemBar and WT.TotemBar.ResetPosition then WT.TotemBar:ResetPosition() end end,
+        function() return WicksTotemsDB.bar.scale or 1.0 end,
+        function(v) if WT.TotemBar and WT.TotemBar.SetScale then WT.TotemBar:SetScale(v) end end)
 
     barRow("Cooldown / Proc Bar",
         function()
@@ -765,7 +841,12 @@ local function buildOptionsPane(parent)
             WicksTotemsDB.cd = WicksTotemsDB.cd or {}
             WicksTotemsDB.cd.locked = v
         end,
-        function() if WT.CooldownTracker and WT.CooldownTracker.ResetPosition then WT.CooldownTracker:ResetPosition() end end)
+        function() if WT.CooldownTracker and WT.CooldownTracker.ResetPosition then WT.CooldownTracker:ResetPosition() end end,
+        function()
+            WicksTotemsDB.cd = WicksTotemsDB.cd or {}
+            return WicksTotemsDB.cd.scale or 1.0
+        end,
+        function(v) if WT.CooldownTracker and WT.CooldownTracker.SetScale then WT.CooldownTracker:SetScale(v) end end)
 
     barRow("Swing Timer",
         function()
@@ -782,7 +863,12 @@ local function buildOptionsPane(parent)
             WicksTotemsDB.swing = WicksTotemsDB.swing or {}
             WicksTotemsDB.swing.locked = v
         end,
-        function() if WT.SwingTimer and WT.SwingTimer.ResetPosition then WT.SwingTimer:ResetPosition() end end)
+        function() if WT.SwingTimer and WT.SwingTimer.ResetPosition then WT.SwingTimer:ResetPosition() end end,
+        function()
+            WicksTotemsDB.swing = WicksTotemsDB.swing or {}
+            return WicksTotemsDB.swing.scale or 1.0
+        end,
+        function(v) if WT.SwingTimer and WT.SwingTimer.SetScale then WT.SwingTimer:SetScale(v) end end)
 
     -- ----- Out-of-Range Warning -----
     makeSectionHeader(pane, "Out-of-Range Warning", y); y = y - 22
