@@ -4,7 +4,7 @@
 
 > Enhancement shaman command bar for TBC Classic. Totem twist on one keybind, swing timer, Windfury and Stormstrike proc flashes, range warnings, ankh count.
 
-Part of the **[Wick suite](https://github.com/Wicksmods/WickSuite)**: precision TBC Classic addons with a shared fel-green-on-deep-purple aesthetic.
+Part of the **[Wick suite](https://github.com/Wicksmods/WickSuite)**: precision addons built around a single fel-green-on-deep-purple aesthetic.
 
 <!-- wick:suite-table:start -->
 | Addon | GitHub | CurseForge |
