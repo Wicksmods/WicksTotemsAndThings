@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.9 - 2026-05-11
+
+Per-shield toggles in Proc Floaters.
+
+- **Lightning / Water / Earth Shield** now each have their own checkbox in Options → Proc Floaters, replacing the single "Show shields" toggle. Each defaults to "show if learned" (driven by the existing primary filter), so a fresh install behaves the same as before — unchecking a row hides that specific shield's floater without affecting the others.
+- Saved-vars: `WicksTotemsDB.procs.shieldsEnabled` retired in favor of `WicksTotemsDB.procs.shields[short]`. An old `shieldsEnabled = false` is migrated by propagating `false` to all three shield entries; otherwise the new map starts empty and follows learned-state defaults.
+- Main panel height 520 → 560 to fit the two extra checkbox rows.
+
 ## 0.3.8 - 2026-05-08
 
 Per-preset element order, weapon imbue tracking, ability-based shield detection.

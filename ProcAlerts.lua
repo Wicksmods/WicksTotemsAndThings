@@ -78,8 +78,20 @@ local function cfg()
     WicksTotemsDB.procs.perProc     = WicksTotemsDB.procs.perProc     or {}
     WicksTotemsDB.procs.scale       = WicksTotemsDB.procs.scale       or 1.0
     WicksTotemsDB.procs.shieldScale = WicksTotemsDB.procs.shieldScale or 1.0
-    if WicksTotemsDB.procs.shieldsEnabled == nil then
-        WicksTotemsDB.procs.shieldsEnabled = true
+    -- Per-shield toggle map (short -> bool). Missing entry = follow the
+    -- primary learned/talent filter (default-on for learned shields).
+    -- Migrate the old global `shieldsEnabled = false` by propagating false
+    -- to every shield entry; on/nil leaves the map empty so defaults apply.
+    if WicksTotemsDB.procs.shields == nil then
+        WicksTotemsDB.procs.shields = {}
+        if WicksTotemsDB.procs.shieldsEnabled == false then
+            for _, e in ipairs(WT.TRACKED or {}) do
+                if e.category == "shield" and e.short then
+                    WicksTotemsDB.procs.shields[e.short] = false
+                end
+            end
+        end
+        WicksTotemsDB.procs.shieldsEnabled = nil
     end
     return WicksTotemsDB.procs
 end
@@ -337,7 +349,7 @@ function PA:Init()
             else
                 allowed = true
             end
-            if allowed and e.category == "shield" and cfg().shieldsEnabled == false then
+            if allowed and e.category == "shield" and cfg().shields[e.short] == false then
                 allowed = false
             end
             if allowed then
@@ -396,10 +408,12 @@ function PA:SetEditMode(on)
     self:Refresh()
 end
 
--- Toggle the entire shield-category set on/off. When disabled, shield
--- floaters are filtered out at Rebuild time and pool-hidden.
-function PA:SetShieldsEnabled(on)
-    cfg().shieldsEnabled = on and true or false
+-- Toggle one shield-category entry on/off by its short id (e.g. "LSh",
+-- "WSh", "ES"). Missing/nil entry follows the primary learned/talent filter;
+-- explicit false hides the floater even when learned.
+function PA:SetShieldEnabled(short, on)
+    if not short then return end
+    cfg().shields[short] = on and true or false
     self:Rebuild()
 end
 
@@ -477,7 +491,7 @@ function PA:Rebuild()
             else
                 allowed = true
             end
-            if allowed and e.category == "shield" and cfg().shieldsEnabled == false then
+            if allowed and e.category == "shield" and cfg().shields[e.short] == false then
                 allowed = false
             end
             if allowed then

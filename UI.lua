@@ -19,7 +19,7 @@ local C_TEXT_NORMAL = { 0.831, 0.784, 0.631, 1 }
 local C_ROW_HOVER   = { 0.310, 0.780, 0.471, 0.06 }
 
 local PANEL_W = 520
-local PANEL_H = 520   -- v0.3.4 bumped 420→500, this round 500→520 — added "Show shields" row in Proc Floaters
+local PANEL_H = 560   -- v0.3.4 bumped 420→500, then 500→520 for "Show shields" row, then 520→560 when that single row expanded to per-shield toggles
 local TITLE_H = 28
 local TAB_H   = 24
 local PADDING = 10
@@ -988,21 +988,29 @@ local function buildOptionsPane(parent)
     resetProcsBtn:SetPoint("TOPLEFT", PADDING + 270, y - 1)
     y = y - rowH
 
-    -- Shields enable/disable toggle (hides Lightning / Water / Earth Shield floaters)
-    cb = makeCheckbox(pane, "Show shields",
-        function()
-            WicksTotemsDB.procs = WicksTotemsDB.procs or {}
-            local v = WicksTotemsDB.procs.shieldsEnabled
-            if v == nil then return true end
-            return v
-        end,
-        function(v)
-            if WT.ProcAlerts and WT.ProcAlerts.SetShieldsEnabled then
-                WT.ProcAlerts:SetShieldsEnabled(v)
-            end
-        end)
-    cb:SetPoint("TOPLEFT", PADDING + 4, y)
-    y = y - rowH
+    -- Per-shield toggles (Lightning / Water / Earth Shield). Each defaults to
+    -- whether the player has learned the shield — that gating happens at the
+    -- primary filter in ProcAlerts. An explicit `false` in `procs.shields[short]`
+    -- hides a learned shield; missing/true leaves the primary filter in charge.
+    for _, e in ipairs(WT.TRACKED or {}) do
+        if e.category == "shield" and e.short and (e.kind == "proc" or e.kind == "flash") then
+            local short = e.short
+            local label = e.aura or e.displayName or short
+            cb = makeCheckbox(pane, "Show " .. label,
+                function()
+                    WicksTotemsDB.procs = WicksTotemsDB.procs or {}
+                    WicksTotemsDB.procs.shields = WicksTotemsDB.procs.shields or {}
+                    return WicksTotemsDB.procs.shields[short] ~= false
+                end,
+                function(v)
+                    if WT.ProcAlerts and WT.ProcAlerts.SetShieldEnabled then
+                        WT.ProcAlerts:SetShieldEnabled(short, v)
+                    end
+                end)
+            cb:SetPoint("TOPLEFT", PADDING + 4, y)
+            y = y - rowH
+        end
+    end
 
     -- Procs size slider (applies to non-shield proc floaters)
     local procsLbl = NewText(pane, 10, C_TEXT_DIM)
