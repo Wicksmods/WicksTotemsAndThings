@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.10 - 2026-05-14
+
+Fixed slider drag causing "blocked from performing an action only available to the Blizzard UI" error when trying to set focus on a unit.
+
+- Replaced the per-frame `OnUpdate` polling approach in custom sliders (which called `IsMouseButtonDown` every frame and accumulated taint) with a mouse-capture frame that only fires on `OnMouseMove` and `OnMouseUp`. No protected functions are polled in a per-frame loop.
+
 ## 0.3.9 - 2026-05-11
 
 Per-shield toggles in Proc Floaters.

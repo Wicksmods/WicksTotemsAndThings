@@ -779,16 +779,7 @@ local function makeSlider(parent, getter, onChange, minVal, maxVal, step)
 
     applyVisual(getter())
 
-    local dragging = false
-    local function onUpdate()
-        if not dragging then return end
-        -- Bullet-proof release detection: OnMouseUp doesn't always fire on
-        -- our frame when the user drags off the slider area before letting
-        -- go. Poll the global mouse button state every frame instead.
-        if not IsMouseButtonDown("LeftButton") then
-            dragging = false
-            return
-        end
+    local function applyFromCursor()
         local mx = GetCursorPosition()
         local effScale = frame:GetEffectiveScale()
         local left = frame:GetLeft() * effScale
@@ -798,11 +789,26 @@ local function makeSlider(parent, getter, onChange, minVal, maxVal, step)
         if onChange then onChange(newV) end
     end
 
-    thumb:SetScript("OnMouseDown", function() dragging = true end)
-    thumb:SetScript("OnMouseUp",   function() dragging = false end)
-    frame:SetScript("OnMouseDown", function() dragging = true; onUpdate() end)
-    frame:SetScript("OnMouseUp",   function() dragging = false end)
-    frame:SetScript("OnUpdate", onUpdate)
+    -- Use a full-screen capture frame so drags that leave the slider still
+    -- register movement and release, without any OnUpdate taint accumulation.
+    local capture = CreateFrame("Frame", nil, UIParent)
+    capture:SetAllPoints(UIParent)
+    capture:EnableMouse(true)
+    capture:Hide()
+    capture:SetScript("OnMouseMove", applyFromCursor)
+    capture:SetScript("OnMouseUp", function(self, btn)
+        if btn == "LeftButton" then
+            self:Hide()
+        end
+    end)
+
+    local function startDrag()
+        applyFromCursor()
+        capture:Show()
+    end
+
+    thumb:SetScript("OnMouseDown", function(self, btn) if btn == "LeftButton" then startDrag() end end)
+    frame:SetScript("OnMouseDown", function(self, btn) if btn == "LeftButton" then startDrag() end end)
 
     return frame
 end
