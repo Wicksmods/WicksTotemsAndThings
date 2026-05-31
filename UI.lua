@@ -795,7 +795,7 @@ local function makeSlider(parent, getter, onChange, minVal, maxVal, step)
     capture:SetAllPoints(UIParent)
     capture:EnableMouse(true)
     capture:Hide()
-    capture:SetScript("OnMouseMove", applyFromCursor)
+    capture:SetScript("OnUpdate", function() applyFromCursor() end)
     capture:SetScript("OnMouseUp", function(self, btn)
         if btn == "LeftButton" then
             self:Hide()

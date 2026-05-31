@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.11 - 2026-05-30
+
+Options tab blank after WoW patch.
+
+- Fixed Options pane showing only the first section after a WoW client update that removed `OnMouseMove` as a valid script handler for Frame objects. The size sliders' mouse-capture frame now uses `OnUpdate` instead, which fires while the capture is active (i.e. only during a drag). All sections now render correctly.
+
 ## 0.3.10 - 2026-05-14
 
 Fixed slider drag causing "blocked from performing an action only available to the Blizzard UI" error when trying to set focus on a unit.
