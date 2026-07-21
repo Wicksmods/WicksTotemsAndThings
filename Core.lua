@@ -307,7 +307,7 @@ SlashCmdList.WICKSTOTEMS = function(input)
         WicksTotemsCharDB.twist = WicksTotemsCharDB.twist or {}
         if action == "on" or action == "" then
             local defaults = {
-                air   = { totems = { "Windfury Totem", "Grace of Air Totem" }, refresh = 5  },
+                air   = { totems = { "Windfury Totem", "Grace of Air Totem" }, refresh = 8  },
                 earth = { totems = { "Strength of Earth Totem", "Stoneskin Totem" }, refresh = 20 },
                 fire  = { totems = { "Searing Totem", "Magma Totem" }, refresh = 15 },
                 water = { totems = { "Healing Stream Totem", "Mana Spring Totem" }, refresh = 15 },

@@ -1050,13 +1050,12 @@ local function buildOptionsPane(parent)
     -- Default totem pairs per element. Toggling on populates the saved-vars
     -- entry; toggling off clears `enabled` so single-cast resumes.
     -- Refresh = the interval after which the click-now cue fires + the
-    -- /castsequence reset timeout. Air = 5s matches WF buff duration so
-    -- the cue prompts you just before WF falls off.
+    -- /castsequence reset timeout.
     local TWIST_DEFAULTS = {
         fire  = { totems = { "Searing Totem", "Magma Totem" },                 refresh = 15 },
         earth = { totems = { "Strength of Earth Totem", "Stoneskin Totem" },   refresh = 20 },
         water = { totems = { "Healing Stream Totem", "Mana Spring Totem" },    refresh = 15 },
-        air   = { totems = { "Windfury Totem", "Grace of Air Totem" },         refresh = 5  },
+        air   = { totems = { "Windfury Totem", "Grace of Air Totem" },         refresh = 8  },
     }
 
     makeSectionHeader(pane, "Totem Twisting (cycles two totems on one keybind)", y); y = y - 22

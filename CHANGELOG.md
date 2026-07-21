@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.12 - 2026-07-21
+
+Air twist countdown default 5s -> 8s.
+
+- Air twist (Windfury / Grace of Air) default refresh raised from 5 to 8 seconds. Fire (15s), Earth (20s), Water (15s) unchanged.
+
 ## 0.3.11 - 2026-05-30
 
 Options tab blank after WoW patch.
