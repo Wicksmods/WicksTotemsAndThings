@@ -1,4 +1,4 @@
-<Bindings xmlns="http://www.blizzard.com/wow/ui/">
+<Bindings>
     <Binding name="CLICK WicksTotemsBar_DropAll:LeftButton" header="WICKSTOTEMS" category="ADDONS"/>
     <Binding name="CLICK WicksTotemsBar_CallElements:LeftButton" category="ADDONS"/>
     <Binding name="CLICK WicksTotemsBar_FIRE:LeftButton"    category="ADDONS"/>
