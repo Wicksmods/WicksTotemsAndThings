@@ -8,6 +8,7 @@
 
 local ADDON, ns = ...
 local WT = WicksTotems
+local D = WickCore.Dialect
 
 WT.TotemBar = {}
 local TB = WT.TotemBar
@@ -395,7 +396,7 @@ local pendingRebuild = false
 
 function TB:RefreshIcons()
     local preset = WT:GetActivePreset()
-    local active = WT.AffectedCount and WT.AffectedCount.active or {}
+    local active = WT:ActiveTotems()
     for _, el in ipairs(elements()) do
         local btn = self["btn_" .. el]
         if btn and btn._icon then
@@ -428,7 +429,7 @@ function TB:RefreshIcons()
             end
 
             if name and name ~= "" then
-                local tex = GetSpellTexture and GetSpellTexture(name)
+                local tex = D.GetSpellTexture(name)
                 if tex then
                     btn._icon:SetTexture(tex)
                     btn._icon:Show()
@@ -452,10 +453,11 @@ local C_OOR_RED = { 0.95, 0.32, 0.32, 0.95 }
 local twistWasReady = { fire = false, earth = false, water = false, air = false }
 
 function TB:RefreshActive()
-    -- Active glow + count badge per element from AffectedCount data.
-    -- If RangeWarning marks the slot as out-of-range, glow tints red.
-    local active = WT.AffectedCount and WT.AffectedCount.active or {}
-    local oorBySlot = (WT.RangeWarning and WT.RangeWarning._oorState) or {}
+    -- Active glow per element from guarded totem state. Affected counts
+    -- and range warnings are gone: group auras are unreadable in combat
+    -- under Midnight rules, and empty out of it.
+    local active = WT:ActiveTotems()
+    local oorBySlot = {}
 
     local infoByElement, oorByElement = {}, {}
     for slot, info in pairs(active) do
@@ -559,8 +561,43 @@ function TB:Rebuild()
         end
     end
 
+    if self.callElements then
+        self.callElements:SetAttribute("type1", "spell")
+        self.callElements:SetAttribute("spell", CALL_OF_THE_ELEMENTS)
+    end
+    if WicksTotemsDB.syncTotemBar ~= false then self:ApplyToTotemBar(preset) end
+
     self:RefreshIcons()
     self:RefreshActive()
+end
+
+-- ============================================================
+-- Blizzard totem bar sync (Forever / Wrath-style multicast bar)
+-- ============================================================
+-- Call of the Elements drops whatever sits in the four multicast slots.
+-- Pushing the active preset into those slots makes the Blizzard bar and
+-- the Wick preset the same thing. Page 1 action IDs are the slot numbers:
+-- fire 1, earth 2, water 3, air 4.
+CALL_OF_THE_ELEMENTS = "Call of the Elements"
+local MULTICAST_SLOT = { fire = 1, earth = 2, water = 3, air = 4 }
+
+function TB:ApplyToTotemBar(preset)
+    if not SetMultiCastSpell then return false, "no totem bar on this client" end
+    if InCombatLockdown() then return false, "in combat" end
+    preset = preset or WT:GetActivePreset()
+    if not preset or not preset.totems then return false, "no active preset" end
+    local pushed = 0
+    for el, action in pairs(MULTICAST_SLOT) do
+        local name = preset.totems[el]
+        if name and name ~= "" then
+            local info = D.GetSpellInfo(name)
+            if info and info.spellID then
+                local ok = pcall(SetMultiCastSpell, action, info.spellID)
+                if ok then pushed = pushed + 1 end
+            end
+        end
+    end
+    return pushed > 0, pushed .. " slots"
 end
 
 -- ============================================================
@@ -599,7 +636,7 @@ local function buildAnkhBox(barHost)
     -- Resolve item icon. GetItemInfo may return nil on first session call;
     -- we re-attempt on BAG_UPDATE.
     local function resolveIcon()
-        local _, _, _, _, _, _, _, _, _, tex = GetItemInfo(ANKH_ITEM_ID)
+        local tex = D.GetItemIcon(ANKH_ITEM_ID)
         if tex then icon:SetTexture(tex)
         else icon:SetTexture("Interface\\Icons\\Spell_Shaman_Reincarnation") end
     end
@@ -618,7 +655,7 @@ local function buildAnkhBox(barHost)
         GameTooltip:ClearLines()
         GameTooltip:AddLine("Ankh", C_TEXT_NORMAL[1], C_TEXT_NORMAL[2], C_TEXT_NORMAL[3])
         GameTooltip:AddLine("Reincarnation reagent", C_TEXT_DIM[1], C_TEXT_DIM[2], C_TEXT_DIM[3])
-        local n = GetItemCount(ANKH_ITEM_ID) or 0
+        local n = D.GetItemCount(ANKH_ITEM_ID) or 0
         GameTooltip:AddLine(("In bags: %d"):format(n), C_GREEN[1], C_GREEN[2], C_GREEN[3])
         GameTooltip:Show()
     end)
@@ -627,7 +664,7 @@ local function buildAnkhBox(barHost)
     -- Refresh count from bag contents
     local function refreshCount()
         resolveIcon()    -- re-resolve in case it was nil at first
-        local n = GetItemCount(ANKH_ITEM_ID) or 0
+        local n = D.GetItemCount(ANKH_ITEM_ID) or 0
         if n <= 0 then
             count:SetText("0")
             count:SetTextColor(0.95, 0.32, 0.32, 1)   -- red — no ankhs!
@@ -786,6 +823,9 @@ function TB:Init()
 
     -- Drop-All: hidden secure button, keybind only
     self.dropAll = makeSecureButton("WicksTotemsBar_DropAll", host, false)
+    -- Call of the Elements: hidden secure button, keybind only. Casts the
+    -- Blizzard totem bar set, which Rebuild keeps in sync with the preset.
+    self.callElements = makeSecureButton("WicksTotemsBar_CallElements", host, false)
 
     -- Per-element: visible icon buttons, click + keybind
     for i, el in ipairs(elements()) do

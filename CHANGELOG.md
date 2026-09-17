@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.0.0 - 2026-09-17 (Forever)
+
+### Rescoped as a loadout kit on WickCore
+
+Forever inherits Midnight's addon rules: totem state, the player's own auras
+and cooldowns are secret in combat, and group auras are unreadable. The
+twist timer, affected-count overlay, range warning, proc alerts, cooldown
+tracker, swing timer and totem-frame badges are removed. What remains is what
+a shaman sets up before the pull, plus the new pieces Forever makes possible.
+
+- Requires WickCore. Interface 16001. Settings move into a WickCore profile.
+- Presets, the secure cast bar, imbue and ankh boxes carry over.
+- Call of the Elements: the active preset is pushed into Blizzard's four totem
+  bar slots (toggle in Options, or /wtt sync), and a hidden secure button casts
+  Call of the Elements for a keybind. One press drops the whole set.
+- Totem twisting keeps the castsequence; the countdown cue is gone.
+- Active tab shows totem state out of combat and says so in combat.
+- Talents: export, import, save, apply, through Blizzard's own parser.
+- Pre-pull checklist: shield, main and off hand imbue, ankhs, preset complete.
+- Racials row. Kit panel at /wtt kit.
+- Minimap launcher and a page under Options, Wick's Mods.
+- LibRangeCheck and CallbackHandler dropped; LibStub comes from WickCore.
+
 ## 0.3.12 - 2026-07-21
 
 Air twist countdown default 5s -> 8s.

@@ -252,35 +252,30 @@ end
 
 local function refreshActivePane()
     if not UI._activeCards then return end
-    local active = WT.AffectedCount and WT.AffectedCount.active or {}
-    -- index active by element rather than slot for direct lookup
+    local active = WT:ActiveTotems()
     local byElement = {}
-    for slot, info in pairs(active) do
-        byElement[info.element] = info
-    end
+    for _, info in pairs(active) do byElement[info.element] = info end
     for _, el in ipairs(ELEMENT_ORDER) do
         local card = UI._activeCards[el]
         local info = byElement[el]
-        if info then
+        if WT.totemsRestricted then
+            card.name:SetText("(in combat)")
+            card.name:SetTextColor(C_TEXT_DIM[1], C_TEXT_DIM[2], C_TEXT_DIM[3])
+            card.timer:SetText("totem state is secret while fighting")
+            card.count:SetText("")
+            card.countLabel:SetText("")
+        elseif info then
             card.name:SetText(info.name)
             card.name:SetTextColor(C_TEXT_NORMAL[1], C_TEXT_NORMAL[2], C_TEXT_NORMAL[3])
             local remaining = (info.startTime or 0) + (info.duration or 0) - GetTime()
             card.timer:SetText(fmtDuration(remaining))
-            if info.range == "self" or info.range == "summon" then
-                card.count:SetText("-")
-                card.countLabel:SetText("self")
-            elseif info.range == "enemy" then
-                card.count:SetText("-")
-                card.countLabel:SetText("enemy")
-            else
-                card.count:SetText(tostring(info.affected or 0))
-                card.countLabel:SetText("in range")
-            end
+            card.count:SetText("")
+            card.countLabel:SetText(info.range == "self" and "self" or (info.range == "enemy" and "enemy" or ""))
         else
             card.name:SetText("(none)")
             card.name:SetTextColor(C_TEXT_DIM[1], C_TEXT_DIM[2], C_TEXT_DIM[3])
             card.timer:SetText("")
-            card.count:SetText("0")
+            card.count:SetText("")
             card.countLabel:SetText("")
         end
     end
@@ -841,39 +836,25 @@ end
 
 local function buildOptionsPane(parent)
     local pane = parent
-
-    -- Defensive: make sure every saved-vars subtable a getter touches
-    -- exists before any checkbox's refresh() dereferences it. Prevents
-    -- a single nil from aborting the rest of the panel.
-    WicksTotemsDB.bar     = WicksTotemsDB.bar     or {}
-    WicksTotemsDB.range   = WicksTotemsDB.range   or { enabled = true, sound = true, banner = true, vignette = true }
-    WicksTotemsDB.overlay = WicksTotemsDB.overlay or { enabled = true }
-    WicksTotemsDB.cd      = WicksTotemsDB.cd      or {}
-    WicksTotemsDB.swing   = WicksTotemsDB.swing   or {}
+    WicksTotemsDB.bar = WicksTotemsDB.bar or {}
     WicksTotemsCharDB.twist = WicksTotemsCharDB.twist or {}
 
-    -- Compact 2-column layout — 3 bar sections (Show + Lock + Reset on one line each)
-    -- + Range warning column + Overlay row.
     local rowH = 20
-    local sectionGap = 4   -- tight spacing so all sections (incl. twist) fit
+    local sectionGap = 6
     local y = -PADDING
 
-    -- Helper: one-line "Bar" section with Show / Lock / Reset + a Size slider
     local function barRow(label, getHidden, setHidden, getLocked, setLocked, onReset, getScale, setScale)
         makeSectionHeader(pane, label, y); y = y - 22
         local show = makeCheckbox(pane, "Show",
             function() return not getHidden() end,
             function(v) setHidden(not v) end)
         show:SetPoint("TOPLEFT", PADDING + 4, y)
-
         local lock = makeCheckbox(pane, "Lock",
             function() return getLocked() end,
             function(v) setLocked(v) end)
         lock:SetPoint("TOPLEFT", PADDING + 90, y)
-
         local rst = makeSmallButton(pane, "Reset position", onReset)
         rst:SetPoint("TOPLEFT", PADDING + 170, y - 1)
-
         if getScale and setScale then
             local sizeLbl = NewText(pane, 10, C_TEXT_DIM)
             sizeLbl:SetPoint("TOPLEFT", PADDING + 270, y - 3)
@@ -881,7 +862,6 @@ local function buildOptionsPane(parent)
             local slider = makeSlider(pane, getScale, setScale, 0.6, 1.8, 0.05)
             slider:SetPoint("TOPLEFT", PADDING + 300, y - 3)
         end
-
         y = y - rowH - sectionGap
     end
 
@@ -893,175 +873,54 @@ local function buildOptionsPane(parent)
         end,
         function() return WicksTotemsDB.bar.locked end,
         function(v) WicksTotemsDB.bar.locked = v end,
-        function() if WT.TotemBar and WT.TotemBar.ResetPosition then WT.TotemBar:ResetPosition() end end,
+        function() if WT.TotemBar then WT.TotemBar:ResetPosition() end end,
         function() return WicksTotemsDB.bar.scale or 1.0 end,
-        function(v) if WT.TotemBar and WT.TotemBar.SetScale then WT.TotemBar:SetScale(v) end end)
+        function(v) if WT.TotemBar then WT.TotemBar:SetScale(v) end end)
 
-    barRow("CD Bar",
-        function()
-            WicksTotemsDB.cd = WicksTotemsDB.cd or {}
-            return WicksTotemsDB.cd.hidden
-        end,
+    -- ----- Blizzard totem bar -----
+    makeSectionHeader(pane, "Blizzard Totem Bar (Call of the Elements)", y); y = y - 22
+    local sync = makeCheckbox(pane, "Keep the active preset in the four totem bar slots",
+        function() return WicksTotemsDB.syncTotemBar ~= false end,
         function(v)
-            WicksTotemsDB.cd = WicksTotemsDB.cd or {}
-            WicksTotemsDB.cd.hidden = v
-            if WT.CooldownTracker then if v then WT.CooldownTracker:Hide() else WT.CooldownTracker:Show() end end
-        end,
-        function() return (WicksTotemsDB.cd or {}).locked end,
-        function(v)
-            WicksTotemsDB.cd = WicksTotemsDB.cd or {}
-            WicksTotemsDB.cd.locked = v
-        end,
-        function() if WT.CooldownTracker and WT.CooldownTracker.ResetPosition then WT.CooldownTracker:ResetPosition() end end,
-        function()
-            WicksTotemsDB.cd = WicksTotemsDB.cd or {}
-            return WicksTotemsDB.cd.scale or 1.0
-        end,
-        function(v) if WT.CooldownTracker and WT.CooldownTracker.SetScale then WT.CooldownTracker:SetScale(v) end end)
-
-    barRow("Swing Timer",
-        function()
-            WicksTotemsDB.swing = WicksTotemsDB.swing or {}
-            return WicksTotemsDB.swing.hidden
-        end,
-        function(v)
-            WicksTotemsDB.swing = WicksTotemsDB.swing or {}
-            WicksTotemsDB.swing.hidden = v
-            if WT.SwingTimer then if v then WT.SwingTimer:Hide() else WT.SwingTimer:Show() end end
-        end,
-        function() return (WicksTotemsDB.swing or {}).locked end,
-        function(v)
-            WicksTotemsDB.swing = WicksTotemsDB.swing or {}
-            WicksTotemsDB.swing.locked = v
-        end,
-        function() if WT.SwingTimer and WT.SwingTimer.ResetPosition then WT.SwingTimer:ResetPosition() end end,
-        function()
-            WicksTotemsDB.swing = WicksTotemsDB.swing or {}
-            return WicksTotemsDB.swing.scale or 1.0
-        end,
-        function(v) if WT.SwingTimer and WT.SwingTimer.SetScale then WT.SwingTimer:SetScale(v) end end)
-
-    -- ----- Out-of-Range Warning -----
-    makeSectionHeader(pane, "Out-of-Range Warning", y); y = y - 22
-    local cb = makeCheckbox(pane, "Enabled", function() return WicksTotemsDB.range.enabled end, function(v)
-        WicksTotemsDB.range.enabled = v
+            WicksTotemsDB.syncTotemBar = v
+            if v and WT.TotemBar and WT.TotemBar.ApplyToTotemBar then WT.TotemBar:ApplyToTotemBar() end
+        end)
+    sync:SetPoint("TOPLEFT", PADDING + 4, y)
+    local pushBtn = makeSmallButton(pane, "Push now", function()
+        if WT.TotemBar and WT.TotemBar.ApplyToTotemBar then WT.TotemBar:ApplyToTotemBar() end
     end)
-    cb:SetPoint("TOPLEFT", PADDING + 4, y)
-    cb = makeCheckbox(pane, "Play sound", function() return WicksTotemsDB.range.sound end, function(v)
-        WicksTotemsDB.range.sound = v
-    end)
-    cb:SetPoint("TOPLEFT", PADDING + 130, y)
+    pushBtn:SetPoint("TOPLEFT", PADDING + 330, y - 1)
     y = y - rowH
-
-    cb = makeCheckbox(pane, "Top banner", function() return WicksTotemsDB.range.banner end, function(v)
-        WicksTotemsDB.range.banner = v
-    end)
-    cb:SetPoint("TOPLEFT", PADDING + 4, y)
-    cb = makeCheckbox(pane, "Screen vignette", function() return WicksTotemsDB.range.vignette end, function(v)
-        WicksTotemsDB.range.vignette = v
-    end)
-    cb:SetPoint("TOPLEFT", PADDING + 130, y)
+    local note = NewText(pane, 10, C_TEXT_DIM)
+    note:SetPoint("TOPLEFT", PADDING + 4, y)
+    note:SetText("Bind Call of the Elements under Key Bindings, AddOns to drop the whole set in one cast.")
     y = y - rowH - sectionGap
 
-    -- ----- Totem Frame Count Badges -----
-    makeSectionHeader(pane, "Totem Frame Count Badges", y); y = y - 22
-    cb = makeCheckbox(pane, "Show count badges on Blizzard's totem icons",
-        function() return WicksTotemsDB.overlay.enabled end,
-        function(v)
-            WicksTotemsDB.overlay.enabled = v
-            if WT.TotemFrameOverlay then WT.TotemFrameOverlay:Refresh() end
-        end)
-    cb:SetPoint("TOPLEFT", PADDING + 4, y)
-    y = y - rowH - sectionGap
-
-    -- ----- Proc Floaters -----
-    makeSectionHeader(pane, "Proc Floaters", y); y = y - 22
-
-    cb = makeCheckbox(pane, "Edit mode (show all for positioning)",
-        function() return WT.ProcAlerts and WT.ProcAlerts.editMode end,
-        function(v)
-            if WT.ProcAlerts and WT.ProcAlerts.SetEditMode then
-                WT.ProcAlerts:SetEditMode(v)
-            end
-        end)
-    cb:SetPoint("TOPLEFT", PADDING + 4, y)
-
-    local resetProcsBtn = makeSmallButton(pane, "Reset positions", function()
-        if WT.ProcAlerts and WT.ProcAlerts.ResetPositions then
-            WT.ProcAlerts:ResetPositions()
-        end
+    -- ----- Loadout tools -----
+    makeSectionHeader(pane, "Talents, Pre-pull Checklist, Racials", y); y = y - 22
+    local kitBtn = makeSmallButton(pane, "Open kit", function()
+        if WT.A and WT.A.kit then WT.A.kit:Toggle() end
     end)
-    resetProcsBtn:SetPoint("TOPLEFT", PADDING + 270, y - 1)
-    y = y - rowH
-
-    -- Per-shield toggles (Lightning / Water / Earth Shield). Each defaults to
-    -- whether the player has learned the shield — that gating happens at the
-    -- primary filter in ProcAlerts. An explicit `false` in `procs.shields[short]`
-    -- hides a learned shield; missing/true leaves the primary filter in charge.
-    for _, e in ipairs(WT.TRACKED or {}) do
-        if e.category == "shield" and e.short and (e.kind == "proc" or e.kind == "flash") then
-            local short = e.short
-            local label = e.aura or e.displayName or short
-            cb = makeCheckbox(pane, "Show " .. label,
-                function()
-                    WicksTotemsDB.procs = WicksTotemsDB.procs or {}
-                    WicksTotemsDB.procs.shields = WicksTotemsDB.procs.shields or {}
-                    return WicksTotemsDB.procs.shields[short] ~= false
-                end,
-                function(v)
-                    if WT.ProcAlerts and WT.ProcAlerts.SetShieldEnabled then
-                        WT.ProcAlerts:SetShieldEnabled(short, v)
-                    end
-                end)
-            cb:SetPoint("TOPLEFT", PADDING + 4, y)
-            y = y - rowH
-        end
-    end
-
-    -- Procs size slider (applies to non-shield proc floaters)
-    local procsLbl = NewText(pane, 10, C_TEXT_DIM)
-    procsLbl:SetPoint("TOPLEFT", PADDING + 4, y - 3)
-    procsLbl:SetText("Procs size")
-    local procSlider = makeSlider(pane,
-        function()
-            WicksTotemsDB.procs = WicksTotemsDB.procs or {}
-            return WicksTotemsDB.procs.scale or 1.0
-        end,
-        function(v) if WT.ProcAlerts and WT.ProcAlerts.SetScale then WT.ProcAlerts:SetScale(v, "proc") end end,
-        0.6, 1.8, 0.05)
-    procSlider:SetPoint("TOPLEFT", PADDING + 80, y - 3)
-    y = y - rowH
-
-    -- Shields size slider (applies to shield-category floaters only)
-    local shieldsLbl = NewText(pane, 10, C_TEXT_DIM)
-    shieldsLbl:SetPoint("TOPLEFT", PADDING + 4, y - 3)
-    shieldsLbl:SetText("Shields size")
-    local shieldSlider = makeSlider(pane,
-        function()
-            WicksTotemsDB.procs = WicksTotemsDB.procs or {}
-            return WicksTotemsDB.procs.shieldScale or 1.0
-        end,
-        function(v) if WT.ProcAlerts and WT.ProcAlerts.SetScale then WT.ProcAlerts:SetScale(v, "shield") end end,
-        0.6, 1.8, 0.05)
-    shieldSlider:SetPoint("TOPLEFT", PADDING + 80, y - 3)
+    kitBtn:SetPoint("TOPLEFT", PADDING + 4, y - 1)
+    local kitNote = NewText(pane, 10, C_TEXT_DIM)
+    kitNote:SetPoint("TOPLEFT", PADDING + 90, y - 3)
+    kitNote:SetText("Also /wtt kit. Everything there is readable out of combat and goes quiet in it.")
     y = y - rowH - sectionGap
 
     -- ----- Totem Twisting -----
-    -- Default totem pairs per element. Toggling on populates the saved-vars
-    -- entry; toggling off clears `enabled` so single-cast resumes.
-    -- Refresh = the interval after which the click-now cue fires + the
-    -- /castsequence reset timeout.
     local TWIST_DEFAULTS = {
         fire  = { totems = { "Searing Totem", "Magma Totem" },                 refresh = 15 },
         earth = { totems = { "Strength of Earth Totem", "Stoneskin Totem" },   refresh = 20 },
         water = { totems = { "Healing Stream Totem", "Mana Spring Totem" },    refresh = 15 },
         air   = { totems = { "Windfury Totem", "Grace of Air Totem" },         refresh = 8  },
     }
-
-    makeSectionHeader(pane, "Totem Twisting (cycles two totems on one keybind)", y); y = y - 22
+    makeSectionHeader(pane, "Totem Twisting (one keybind cycles two totems)", y); y = y - 22
+    local twistNote = NewText(pane, 10, C_TEXT_DIM)
+    twistNote:SetPoint("TOPLEFT", PADDING + 4, y)
+    twistNote:SetText("The castsequence still works. The countdown cue does not exist on Forever: totem timers are secret in combat.")
+    y = y - rowH
 
     local function twistRow(element, label, x)
-        WicksTotemsCharDB.twist = WicksTotemsCharDB.twist or {}
         local d = TWIST_DEFAULTS[element]
         local row = makeCheckbox(pane,
             ("%s: %s <-> %s"):format(label, d.totems[1]:gsub(" Totem", ""), d.totems[2]:gsub(" Totem", "")),
@@ -1079,7 +938,6 @@ local function buildOptionsPane(parent)
             end)
         row:SetPoint("TOPLEFT", PADDING + 4, x)
     end
-
     twistRow("fire",  "Fire",  y); y = y - rowH
     twistRow("earth", "Earth", y); y = y - rowH
     twistRow("water", "Water", y); y = y - rowH
