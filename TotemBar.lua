@@ -9,6 +9,7 @@
 local ADDON, ns = ...
 local WT = WicksTotems
 local D = WickCore.Dialect
+local Chrome = WickCore.Chrome
 
 WT.TotemBar = {}
 local TB = WT.TotemBar
@@ -362,7 +363,8 @@ local function buildHost()
     host:SetClampedToScreen(true)
     host:RegisterForDrag("LeftButton")
     host:SetScript("OnDragStart", function(self)
-        if WicksTotemsDB.bar.locked then return end
+        -- A lock stops a nudge, not a deliberate move: shift overrides it.
+        if not Chrome:DragAllowed(WicksTotemsDB.bar.locked) then return end
         self:StartMoving()
     end)
     host:SetScript("OnDragStop", function(self)
