@@ -55,7 +55,7 @@ local CHAR_DEFAULTS = {
 
 local A = Core:NewAddon("WicksTotemsAndThings", {
     title    = "Wick's Totems and Things",
-    version  = "1.0.0",
+    version  = "0.9.0",
     savedVar = "WicksTotemsSaved",
     defaults = { profile = PROFILE_DEFAULTS, char = CHAR_DEFAULTS, global = {} },
 })
