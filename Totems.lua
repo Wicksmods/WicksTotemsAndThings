@@ -4,6 +4,7 @@
 -- item names. Ranks are implicit (/cast picks the highest known).
 
 local ADDON, ns = ...
+if not WickCore then return end   -- said once in Core.lua
 local WT = WicksTotems
 
 -- Slot indices used by GetTotemInfo / PLAYER_TOTEM_UPDATE in TBC 2.5.5.

@@ -3,7 +3,7 @@
 ## Notes: Shaman loadout kit for World of Warcraft: Forever. Totem presets, secure cast bar, Call of the Elements sync, imbues, talents, pre-pull checklist, racials.
 ## Author: Wick
 ## Version: 1.0.0
-## Dependencies: WickCore
+## OptionalDeps: WickCore
 ## SavedVariables: WicksTotemsSaved
 ## X-Website: https://wicksmods.com
 ## X-WickCore: WickCore-1.0

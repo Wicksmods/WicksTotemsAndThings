@@ -2,6 +2,7 @@
 -- UI.lua: brand-styled main panel.
 
 local ADDON, ns = ...
+if not WickCore then return end   -- said once in Core.lua
 local WT = WicksTotems
 
 WT.UI = {}

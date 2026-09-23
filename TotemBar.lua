@@ -7,6 +7,7 @@
 --     deferred to PLAYER_REGEN_ENABLED.
 
 local ADDON, ns = ...
+if not WickCore then return end   -- said once in Core.lua
 local WT = WicksTotems
 local D = WickCore.Dialect
 local Chrome = WickCore.Chrome
