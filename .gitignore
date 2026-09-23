@@ -32,3 +32,5 @@ Thumbs.db
 
 # Wick automation tracking files (social-post markers, etc.)
 .wick-*
+# Wick automation tracking files (social-post markers, etc.)
+.wick-*
