@@ -19,7 +19,7 @@ local C_BORDER      = C.border
 local C_GREEN       = C.fel
 local C_TEXT_DIM    = { 0.42, 0.35, 0.54, 1 }
 local C_TEXT_NORMAL = C.text
-local C_ROW_HOVER   = { 0.310, 0.780, 0.471, 0.06 }
+local C_ROW_HOVER   = Chrome:Wash("fel", 0.06)
 
 local PANEL_W = 520
 local PANEL_H = 560   -- v0.3.4 bumped 420→500, then 500→520 for "Show shields" row, then 520→560 when that single row expanded to per-shield toggles
